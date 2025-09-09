@@ -664,4 +664,17 @@ pytest
 9. Add more comprehensive testing
 10. Implement CI/CD pipeline
 
+## 📋 Project Documentation
+
+For detailed information about the project architecture and features:
+- [Project Summary](PROJECT_SUMMARY.md) - Detailed overview of the project architecture
+- [Architecture](ARCHITECTURE.md) - System architecture documentation
+- [Authentication Flow](AUTH_FLOW.md) - Detailed authentication implementation
+- [Database](DATABASE.md) - Database schema and design
+- [Development Guide](DEVELOPMENT_GUIDE.md) - Comprehensive development guide
+- [API Documentation](API_DOCUMENTATION.md) - Detailed API endpoint documentation
+- [Backup Documentation](BACKUP_DOCUMENTATION.md) - Database backup and restore procedures
+- [Docker Troubleshooting Guide](TROUBLESHOOTING_DOCKER.md) - Resolving common Docker container issues
+- [Docker Fixes Summary](DOCKER_FIXES_SUMMARY.md) - Summary of Docker container issues and their resolutions
+
 This documentation serves as a comprehensive guide for beginner developers to understand the complete development process, from initial structure creation to advanced features like database migrations, password security, and JWT authentication.

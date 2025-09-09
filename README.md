@@ -73,7 +73,9 @@ fastapi-backend-template/
 ├── entrypoint.sh            # Migration entrypoint script
 ├── Makefile                 # Common commands and workflows
 ├── requirements.txt         # Python dependencies
-└── .env.example             # Environment variables template
+├── .env.example             # Environment variables template
+├── TROUBLESHOOTING_DOCKER.md # Docker troubleshooting guide
+└── README.md                # This file
 ```
 
 ## 🛠️ Development Workflow
@@ -237,6 +239,7 @@ For detailed information about the project architecture and features:
 - [Development Guide](DEVELOPMENT_GUIDE.md) - Comprehensive development guide
 - [API Documentation](API_DOCUMENTATION.md) - Detailed API endpoint documentation
 - [Backup Documentation](BACKUP_DOCUMENTATION.md) - Database backup and restore procedures
+- [Docker Troubleshooting Guide](TROUBLESHOOTING_DOCKER.md) - Resolving common Docker container issues
 
 ## 🔄 Database Backup
 
