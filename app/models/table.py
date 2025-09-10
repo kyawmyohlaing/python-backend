@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, JSON
 from database import Base
 from pydantic import BaseModel
 from typing import List, Optional
@@ -13,6 +13,7 @@ class Table(Base):
     is_occupied = Column(Boolean, default=False)
     current_order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
     status = Column(String, default="available")  # available, occupied, reserved, cleaning
+    seats = Column(JSON, default=[])  # Track individual seats and their status
 
 # Pydantic models for API validation
 class TableBase(BaseModel):
@@ -28,12 +29,14 @@ class TableUpdate(BaseModel):
     is_occupied: Optional[bool] = None
     current_order_id: Optional[int] = None
     status: Optional[str] = None
+    seats: Optional[List[dict]] = None
 
 class TableResponse(TableBase):
     id: int
     is_occupied: bool
     current_order_id: Optional[int] = None
     status: str
+    seats: Optional[List[dict]] = None
 
     class Config:
         from_attributes = True

@@ -13,7 +13,8 @@ sample_tables: List[TableResponse] = [
         capacity=4,
         is_occupied=False,
         current_order_id=None,
-        status="available"
+        status="available",
+        seats=[]
     ),
     TableResponse(
         id=2,
@@ -21,7 +22,8 @@ sample_tables: List[TableResponse] = [
         capacity=2,
         is_occupied=False,
         current_order_id=None,
-        status="available"
+        status="available",
+        seats=[]
     ),
     TableResponse(
         id=3,
@@ -29,7 +31,8 @@ sample_tables: List[TableResponse] = [
         capacity=6,
         is_occupied=False,
         current_order_id=None,
-        status="available"
+        status="available",
+        seats=[]
     ),
     TableResponse(
         id=4,
@@ -37,6 +40,7 @@ sample_tables: List[TableResponse] = [
         capacity=4,
         is_occupied=False,
         current_order_id=None,
-        status="available"
+        status="available",
+        seats=[]
     )
 ]

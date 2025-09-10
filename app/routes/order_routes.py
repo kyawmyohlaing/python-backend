@@ -37,6 +37,7 @@ def create_order(order: OrderCreate):
         table_id=order.table_id,
         customer_count=order.customer_count,
         special_requests=order.special_requests,
+        assigned_seats=order.assigned_seats,
         timestamp=datetime.now()
     )
     sample_orders.append(new_order)
@@ -58,6 +59,12 @@ def create_order(order: OrderCreate):
             table.is_occupied = True
             table.current_order_id = new_id
             table.status = "occupied"
+            
+            # Assign seats if provided
+            if order.assigned_seats:
+                for seat_num in order.assigned_seats:
+                    if seat_num <= len(table.seats):
+                        table.seats[seat_num-1]["status"] = "occupied"
     
     return new_order
 
@@ -84,6 +91,10 @@ def update_order(order_id: int, order_update: OrderUpdate):
                 old_table.is_occupied = False
                 old_table.current_order_id = None
                 old_table.status = "available"
+                # Release all seats
+                for seat in old_table.seats:
+                    seat["status"] = "available"
+                    seat["customer_name"] = None
         
         # Assign new table
         new_table = next((t for t in sample_tables if t.id == order_update.table_id), None)
@@ -91,6 +102,12 @@ def update_order(order_id: int, order_update: OrderUpdate):
             new_table.is_occupied = True
             new_table.current_order_id = order_id
             new_table.status = "occupied"
+            
+            # Assign seats if provided
+            if order_update.assigned_seats:
+                for seat_num in order_update.assigned_seats:
+                    if seat_num <= len(new_table.seats):
+                        new_table.seats[seat_num-1]["status"] = "occupied"
         
         order.table_id = order_update.table_id
     
@@ -99,6 +116,9 @@ def update_order(order_id: int, order_update: OrderUpdate):
     
     if order_update.special_requests is not None:
         order.special_requests = order_update.special_requests
+    
+    if order_update.assigned_seats is not None:
+        order.assigned_seats = order_update.assigned_seats
     
     return order
 
@@ -117,6 +137,10 @@ def delete_order(order_id: int):
             table.is_occupied = False
             table.current_order_id = None
             table.status = "available"
+            # Release all seats
+            for seat in table.seats:
+                seat["status"] = "available"
+                seat["customer_name"] = None
     
     sample_orders = [o for o in sample_orders if o.id != order_id]
     return {"message": "Order deleted successfully"}

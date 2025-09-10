@@ -17,6 +17,8 @@ class Order(Base):
     table_id = Column(Integer, ForeignKey("tables.id"), nullable=True)
     customer_count = Column(Integer, default=1)
     special_requests = Column(String, nullable=True)
+    # Seat information
+    assigned_seats = Column(String, nullable=True)  # JSON string of assigned seats
 
 # Pydantic models for API validation
 class OrderItem(MenuItemBase):
@@ -28,6 +30,7 @@ class OrderBase(BaseModel):
     table_id: Optional[int] = None
     customer_count: Optional[int] = 1
     special_requests: Optional[str] = None
+    assigned_seats: Optional[List[int]] = None
 
 class OrderCreate(OrderBase):
     pass
@@ -38,6 +41,7 @@ class OrderUpdate(BaseModel):
     special_requests: Optional[str] = None
     order: Optional[List[OrderItem]] = None
     total: Optional[float] = None
+    assigned_seats: Optional[List[int]] = None
 
 class OrderResponse(OrderBase):
     id: int
