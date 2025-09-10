@@ -36,6 +36,25 @@ The backend now provides the following API endpoints that match the frontend exp
    - Description: Retrieve all submitted orders
    - Response: Array of all orders
 
+3. **Get Specific Order**
+   - URL: `/api/orders/{order_id}`
+   - Method: `GET`
+   - Description: Retrieve a specific order by ID
+   - Response: Order details
+
+4. **Update Order**
+   - URL: `/api/orders/{order_id}`
+   - Method: `PUT`
+   - Description: Update an existing order
+   - Request Body: Order update data
+   - Response: Updated order
+
+5. **Delete Order**
+   - URL: `/api/orders/{order_id}`
+   - Method: `DELETE`
+   - Description: Delete an order
+   - Response: Success message
+
 ### Kitchen Endpoints
 
 1. **Get Kitchen Orders**
@@ -56,6 +75,64 @@ The backend now provides the following API endpoints that match the frontend exp
    - Method: `DELETE`
    - Description: Remove a completed order from the kitchen display
    - Response: Success message
+
+### Table Management Endpoints
+
+1. **Get All Tables**
+   - URL: `/api/tables`
+   - Method: `GET`
+   - Description: Retrieve all tables in the restaurant
+   - Response: Array of tables
+
+2. **Get Specific Table**
+   - URL: `/api/tables/{table_id}`
+   - Method: `GET`
+   - Description: Retrieve a specific table by ID
+   - Response: Table details
+
+3. **Create New Table**
+   - URL: `/api/tables`
+   - Method: `POST`
+   - Description: Create a new table
+   - Request Body: Table data
+   - Response: Created table
+
+4. **Update Table**
+   - URL: `/api/tables/{table_id}`
+   - Method: `PUT`
+   - Description: Update a table's information
+   - Request Body: Table update data
+   - Response: Updated table
+
+5. **Delete Table**
+   - URL: `/api/tables/{table_id}`
+   - Method: `DELETE`
+   - Description: Delete a table (only if not occupied)
+   - Response: Success message
+
+6. **Assign Table to Order**
+   - URL: `/api/tables/{table_id}/assign/{order_id}`
+   - Method: `POST`
+   - Description: Assign a table to an order
+   - Response: Updated table
+
+7. **Release Table**
+   - URL: `/api/tables/{table_id}/release`
+   - Method: `POST`
+   - Description: Release a table (mark as available)
+   - Response: Updated table
+
+8. **Get Occupied Tables**
+   - URL: `/api/tables/occupied`
+   - Method: `GET`
+   - Description: Retrieve all occupied tables
+   - Response: Array of occupied tables
+
+9. **Get Available Tables**
+   - URL: `/api/tables/available`
+   - Method: `GET`
+   - Description: Retrieve all available tables
+   - Response: Array of available tables
 
 ## Data Models
 
@@ -81,6 +158,9 @@ The backend now provides the following API endpoints that match the frontend exp
     }
   ],
   "total": 2.5,
+  "table_id": 1,
+  "customer_count": 2,
+  "special_requests": "Extra spicy",
   "timestamp": "2023-01-01T00:00:00Z"
 }
 ```
@@ -104,6 +184,18 @@ The backend now provides the following API endpoints that match the frontend exp
 }
 ```
 
+### Table
+```json
+{
+  "id": 1,
+  "table_number": 1,
+  "capacity": 4,
+  "is_occupied": false,
+  "current_order_id": null,
+  "status": "available"
+}
+```
+
 ## Integration with Frontend
 
 The frontend makes API calls to the `/api` endpoints, which are handled by the backend:
@@ -112,6 +204,7 @@ The frontend makes API calls to the `/api` endpoints, which are handled by the b
 2. **Order Submission**: Sends order data to `/api/orders` (POST)
 3. **Order History**: Fetches orders from `/api/orders` (GET)
 4. **Kitchen Display**: Fetches and manages kitchen orders from `/api/kitchen/orders`
+5. **Table Management**: Manages restaurant tables through `/api/tables` endpoints
 
 ## Running the Application
 
