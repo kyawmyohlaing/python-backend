@@ -29,6 +29,13 @@ ls -la migrations/
 cd migrations
 alembic -c alembic.ini upgrade head
 
+# Change back to the app directory
+cd /app
+
+# Initialize menu data
+echo "Initializing menu data..."
+python initialize_menu.py
+
 # Change back to the app directory before starting the server
 cd /app
 

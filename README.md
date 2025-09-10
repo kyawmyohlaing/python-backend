@@ -16,6 +16,7 @@ A production-ready, scalable FastAPI backend template with PostgreSQL, Alembic m
 - **Hot Reload**: Development mode with automatic reloading for rapid iteration
 - **Environment Configuration**: Flexible configuration management with .env files
 - **Comprehensive Testing**: Unit and integration tests with pytest
+- **React Frontend Integration**: Ready to integrate with React frontend applications
 
 ## 🚀 Quick Start
 
@@ -250,6 +251,30 @@ make backup
 ```
 
 This will create a timestamped backup of your PostgreSQL database in the `backups/` directory. For more detailed information about backup strategies, please refer to the [Backup Documentation](BACKUP_DOCUMENTATION.md).
+
+## 🌐 React Frontend Integration
+
+This backend is designed to work seamlessly with a React frontend application. The integration includes:
+
+### API Endpoints for Frontend
+
+The backend provides specific endpoints that match the React frontend expectations:
+
+1. **Menu Management**
+   - `GET /api/menu` - Retrieve all menu items
+   - `POST /api/menu` - Create a new menu item
+
+2. **Order Management**
+   - `POST /api/orders` - Submit a new order
+   - `GET /api/orders` - Retrieve all orders
+
+### CORS Configuration
+
+The backend is configured to allow cross-origin requests from the React frontend, ensuring smooth communication between the frontend and backend services.
+
+### Integration Guide
+
+For detailed information about integrating with the React frontend, see [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md).
 
 ## 🤝 Contributing
 
