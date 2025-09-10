@@ -6,11 +6,10 @@ from datetime import datetime
 from database import get_db
 from models.order import Order, OrderCreate, OrderResponse
 from models.menu import MenuItem
+from models.kitchen import KitchenOrderCreate, KitchenOrderResponse
+from data.shared_data import sample_orders, sample_kitchen_orders
 
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
-
-# Sample orders data - in a real application, this would be stored in a database
-sample_orders = []
 
 @router.get("/", response_model=List[OrderResponse])
 def get_orders():
@@ -29,4 +28,15 @@ def create_order(order: OrderCreate):
         timestamp=datetime.now()
     )
     sample_orders.append(new_order)
+    
+    # Automatically add the order to the kitchen
+    kitchen_order = KitchenOrderResponse(
+        id=len(sample_kitchen_orders) + 1,
+        order_id=new_id,
+        status="pending",
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    )
+    sample_kitchen_orders.append(kitchen_order)
+    
     return new_order

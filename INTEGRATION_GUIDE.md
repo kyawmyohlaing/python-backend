@@ -36,6 +36,27 @@ The backend now provides the following API endpoints that match the frontend exp
    - Description: Retrieve all submitted orders
    - Response: Array of all orders
 
+### Kitchen Endpoints
+
+1. **Get Kitchen Orders**
+   - URL: `/api/kitchen/orders`
+   - Method: `GET`
+   - Description: Retrieve all orders for kitchen preparation
+   - Response: Array of kitchen orders with details
+
+2. **Update Order Status**
+   - URL: `/api/kitchen/orders/{order_id}`
+   - Method: `PUT`
+   - Description: Update the status of a kitchen order
+   - Request Body: Status update
+   - Response: Updated kitchen order
+
+3. **Remove Kitchen Order**
+   - URL: `/api/kitchen/orders/{order_id}`
+   - Method: `DELETE`
+   - Description: Remove a completed order from the kitchen display
+   - Response: Success message
+
 ## Data Models
 
 ### Menu Item
@@ -64,6 +85,25 @@ The backend now provides the following API endpoints that match the frontend exp
 }
 ```
 
+### Kitchen Order
+```json
+{
+  "id": 1,
+  "order_id": 1,
+  "status": "pending",
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:00:00Z",
+  "order_items": [
+    {
+      "name": "Shan Noodles",
+      "price": 2.5,
+      "category": "Myanmar Food"
+    }
+  ],
+  "total": 2.5
+}
+```
+
 ## Integration with Frontend
 
 The frontend makes API calls to the `/api` endpoints, which are handled by the backend:
@@ -71,6 +111,7 @@ The frontend makes API calls to the `/api` endpoints, which are handled by the b
 1. **Menu Page**: Fetches menu items from `/api/menu`
 2. **Order Submission**: Sends order data to `/api/orders` (POST)
 3. **Order History**: Fetches orders from `/api/orders` (GET)
+4. **Kitchen Display**: Fetches and manages kitchen orders from `/api/kitchen/orders`
 
 ## Running the Application
 
