@@ -1,8 +1,13 @@
 import pytest
 import os
+import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-# Since we're in the container and files are directly in /app, we import directly
+
+# Add app directory to path for consistent imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'app'))
+
+# Import from app package
 from database import Base
 
 # This file contains pytest fixtures that can be shared across multiple test files

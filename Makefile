@@ -1,66 +1,77 @@
-COMPOSE_DEV=docker-compose -f docker-compose.yml -f docker-compose.override.yml
-COMPOSE_PROD=docker-compose -f docker-compose.yml
+# Makefile for FastAPI backend template
 
-.PHONY: help dev prod down logs migrate test clean setup backup
+# Variables
+PYTHON = python3
+PYTEST = pytest
+APP_DIR = app
+TESTS_DIR = tests
 
+# Default target
+.PHONY: help
 help:
-	@echo "FastAPI Backend Template - Makefile Commands"
-	@echo "=========================================="
-	@echo "  make dev       - Start development environment (hot reload)"
-	@echo "  make prod      - Start production environment (Gunicorn)"
-	@echo "  make down      - Stop all containers"
-	@echo "  make logs      - View application logs"
-	@echo "  make migrate   - Run database migrations"
-	@echo "  make test      - Run test suite"
-	@echo "  make clean     - Remove Docker containers, networks, and volumes"
-	@echo "  make setup     - Setup environment (copy .env.example to .env)"
-	@echo "  make backup    - Create a database backup"
+	@echo "FastAPI Backend Template - Available Commands:"
+	@echo "  make dev          - Start development server"
+	@echo "  make prod         - Start production server"
+	@echo "  make test         - Run all tests"
+	@echo "  make test-tables  - Run table management tests"
+	@echo "  make test-users   - Run user-related tests"
+	@echo "  make migrate      - Run database migrations"
+	@echo "  make clean        - Clean Python cache files"
+	@echo "  make logs         - View container logs"
+	@echo "  make backup       - Create database backup"
+	@echo "  make restore      - Restore database from backup"
 
+# Development server
+.PHONY: dev
 dev:
-	@echo "Starting development environment..."
-	$(COMPOSE_DEV) up --build
+	docker-compose up -d
 
+# Production server
+.PHONY: prod
 prod:
-	@echo "Starting production environment..."
-	$(COMPOSE_PROD) up --build -d
+	docker-compose -f docker-compose.yml up -d
 
-down:
-	@echo "Stopping all containers..."
-	docker-compose down
-
-logs:
-	@echo "Viewing application logs..."
-	docker-compose logs -f web
-
-migrate:
-	@echo "Running database migrations..."
-	docker-compose exec web alembic -c app/migrations/alembic.ini upgrade head
-
+# Run all tests
+.PHONY: test
 test:
-	@echo "Running test suite..."
-	python -m pytest tests/ -v
+	$(PYTHON) -m $(PYTEST) $(TESTS_DIR) -v
 
+# Run table management tests
+.PHONY: test-tables
+test-tables:
+	$(PYTHON) run_table_tests.py
+
+# Run user-related tests
+.PHONY: test-users
+test-users:
+	$(PYTHON) -m $(PYTEST) $(TESTS_DIR)/test_users* -v
+
+# Run database migrations
+.PHONY: migrate
+migrate:
+	docker-compose run --rm web alembic upgrade head
+
+# Clean Python cache files
+.PHONY: clean
 clean:
-	@echo "Cleaning up Docker resources..."
-	docker-compose down -v --remove-orphans
+	find . -type f -name "*.pyc" -delete
+	find . -type d -name "__pycache__" -delete
+	find . -type f -name "*.pyo" -delete
+	find . -type f -name "*~" -delete
+	find . -type f -name ".DS_Store" -delete
 
-setup:
-	@echo "Setting up environment..."
-	@if [ ! -f .env ]; then \
-		cp .env.example .env; \
-		echo "Created .env file from .env.example"; \
-		echo "Please review and update the .env file with your configuration"; \
-	else \
-		echo ".env file already exists"; \
-	fi
+# View container logs
+.PHONY: logs
+logs:
+	docker-compose logs -f
 
+# Create database backup
+.PHONY: backup
 backup:
-	@echo "Creating database backup..."
-	@if [ -f "backup_once.sh" ]; then \
-		chmod +x backup_once.sh && ./backup_once.sh; \
-	elif [ -f "backup_once.bat" ]; then \
-		./backup_once.bat; \
-	else \
-		echo "Backup script not found. Please ensure backup_once.sh or backup_once.bat exists."; \
-		exit 1; \
-	fi
+	./backup_once.sh
+
+# Restore database from backup
+.PHONY: restore
+restore:
+	@echo "To restore database, use:"
+	@echo "./restore_db.sh <backup_file>"

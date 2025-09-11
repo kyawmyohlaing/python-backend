@@ -62,6 +62,10 @@ def update_table(table_id: int, table_update: TableUpdate):
     if table_update.capacity is not None:
         table.capacity = table_update.capacity
         # Update seats array to match new capacity
+        # Ensure seats is not None before working with it
+        if table.seats is None:
+            table.seats = []
+        
         if table_update.capacity > len(table.seats):
             # Add new seats
             for i in range(len(table.seats), table_update.capacity):
@@ -107,6 +111,11 @@ def assign_table_to_order(table_id: int, order_id: int):
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
     
+    # Check if order exists
+    order = next((o for o in sample_orders if o.id == order_id), None)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
     # Check if table is already occupied
     if table.is_occupied:
         raise HTTPException(status_code=400, detail="Table is already occupied")
@@ -117,6 +126,9 @@ def assign_table_to_order(table_id: int, order_id: int):
     table.status = "occupied"
     
     # Mark all seats as occupied
+    # Ensure seats is not None before iterating
+    if table.seats is None:
+        table.seats = []
     for seat in table.seats:
         seat["status"] = "occupied"
     
@@ -135,6 +147,9 @@ def release_table(table_id: int):
     table.status = "available"
     
     # Mark all seats as available
+    # Ensure seats is not None before iterating
+    if table.seats is None:
+        table.seats = []
     for seat in table.seats:
         seat["status"] = "available"
         seat["customer_name"] = None
@@ -143,11 +158,15 @@ def release_table(table_id: int):
 
 # Seat management functions
 @router.post("/{table_id}/assign-seat/{seat_number}")
-def assign_seat(table_id: int, seat_number: int, customer_name: str = None):
+def assign_seat(table_id: int, seat_number: int, customer_name: str = ""):
     """Assign a specific seat at a table"""
     table = next((t for t in sample_tables if t.id == table_id), None)
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
+    
+    # Ensure seats is not None before working with it
+    if table.seats is None:
+        table.seats = []
     
     # Find the seat
     seat = next((s for s in table.seats if s["seat_number"] == seat_number), None)
@@ -156,7 +175,7 @@ def assign_seat(table_id: int, seat_number: int, customer_name: str = None):
     
     # Update seat status
     seat["status"] = "occupied"
-    seat["customer_name"] = customer_name
+    seat["customer_name"] = customer_name if customer_name else None
     
     # If table is not marked as occupied, update it
     if not table.is_occupied:
@@ -171,6 +190,10 @@ def release_seat(table_id: int, seat_number: int):
     table = next((t for t in sample_tables if t.id == table_id), None)
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
+    
+    # Ensure seats is not None before working with it
+    if table.seats is None:
+        table.seats = []
     
     # Find the seat
     seat = next((s for s in table.seats if s["seat_number"] == seat_number), None)
@@ -222,12 +245,18 @@ def merge_tables(table_id_1: int, table_id_2: int):
     table2.is_occupied = False
     table2.current_order_id = None
     table2.status = "available"
+    # Ensure seats is not None before iterating
+    if table2.seats is None:
+        table2.seats = []
     for seat in table2.seats:
         seat["status"] = "available"
         seat["customer_name"] = None
     
     # Update the first table to reflect that it now contains both tables' customers
     table1.capacity = table1.capacity + table2.capacity
+    # Ensure seats is not None before working with it
+    if table1.seats is None:
+        table1.seats = []
     # Extend seats array
     for i in range(len(table1.seats), table1.capacity):
         table1.seats.append({"seat_number": i+1, "status": "occupied", "customer_name": None})

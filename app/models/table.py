@@ -6,6 +6,7 @@ from datetime import datetime
 
 class Table(Base):
     __tablename__ = "tables"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     table_number = Column(Integer, unique=True, index=True)
