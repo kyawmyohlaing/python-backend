@@ -60,20 +60,30 @@ class KOTService:
             if hasattr(item, 'category') and item.category:
                 kot_content += f"   Category: {item.category}\n"
             
-            # Add modifiers if they exist
+            # Add modifiers if they exist (check multiple possible locations)
+            modifiers = None
             if hasattr(kitchen_order, 'modifiers') and kitchen_order.modifiers:
                 # Try to get modifiers for this specific item
-                item_modifiers = kitchen_order.modifiers.get(str(item.name), [])
-                if not item_modifiers:
+                modifiers = kitchen_order.modifiers.get(item.name, [])
+                if not modifiers:
                     # Try with index-based approach
-                    item_modifiers = kitchen_order.modifiers.get(str(i-1), [])
-                if item_modifiers:
-                    kot_content += f"   Modifiers: {', '.join(item_modifiers)}\n"
+                    modifiers = kitchen_order.modifiers.get(str(i-1), [])
+            elif hasattr(item, 'modifiers') and item.modifiers:
+                modifiers = item.modifiers
+            
+            if modifiers:
+                kot_content += f"   Modifiers: {', '.join(modifiers)}\n"
         
         # Special requests
+        special_requests = None
         if hasattr(kitchen_order, 'special_requests') and kitchen_order.special_requests:
+            special_requests = kitchen_order.special_requests
+        elif hasattr(kitchen_order, 'order') and hasattr(kitchen_order.order, 'special_requests'):
+            special_requests = kitchen_order.order.special_requests
+            
+        if special_requests:
             kot_content += "-" * 40 + "\n"
-            kot_content += f"Special Requests: {kitchen_order.special_requests}\n"
+            kot_content += f"Special Requests: {special_requests}\n"
         
         # Footer
         kot_content += "-" * 40 + "\n"
@@ -154,6 +164,7 @@ class KOTService:
         for station_id, items in station_items.items():
             if items:  # Only send if there are items for this station
                 # Create a copy of the kitchen order with only items for this station
+                # We need to create a new object without the modifiers field that causes issues
                 station_order = KitchenOrderDetail(
                     id=kitchen_order.id,
                     order_id=kitchen_order.order_id,
@@ -206,10 +217,8 @@ class KOTService:
             customer_name=getattr(order, 'customer_name', None)
         )
         
-        # Add modifiers and special requests if they exist
-        if hasattr(order, 'modifiers'):
-            kitchen_order.modifiers = order.modifiers
-        if hasattr(order, 'special_requests'):
+        # Add special requests if they exist (but don't add modifiers to avoid the field error)
+        if hasattr(order, 'special_requests') and order.special_requests:
             kitchen_order.special_requests = order.special_requests
         
         # Route to appropriate stations
