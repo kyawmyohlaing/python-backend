@@ -5,6 +5,7 @@ from typing import List
 
 class MenuItem(Base):
     __tablename__ = "menu_items"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)

@@ -9,6 +9,7 @@ from models.menu import MenuItem
 from models.kitchen import KitchenOrderCreate, KitchenOrderResponse
 from models.table import TableResponse
 from data.shared_data import sample_orders, sample_kitchen_orders, sample_tables
+from services.kot_service import kot_service
 
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
@@ -60,6 +61,13 @@ def create_order(order: OrderCreate):
         updated_at=datetime.now()
     )
     sample_kitchen_orders.append(kitchen_order)
+    
+    # Automatically print KOT for the new order
+    try:
+        kot_service.print_kot_for_order(new_id)
+    except Exception as e:
+        # Log the error but don't fail the order creation
+        print(f"Warning: Failed to print KOT for order {new_id}: {str(e)}")
     
     # Handle table assignment based on order type
     if new_order.order_type == "dine-in":
