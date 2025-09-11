@@ -14,7 +14,7 @@ sample_tables: List[TableResponse] = [
         is_occupied=False,
         current_order_id=None,
         status="available",
-        seats=[{"status": "available", "customer_name": None} for _ in range(4)]
+        seats=[{"seat_number": i+1, "status": "available", "customer_name": None} for i in range(4)]
     ),
     TableResponse(
         id=2,
@@ -23,7 +23,7 @@ sample_tables: List[TableResponse] = [
         is_occupied=False,
         current_order_id=None,
         status="available",
-        seats=[{"status": "available", "customer_name": None} for _ in range(2)]
+        seats=[{"seat_number": i+1, "status": "available", "customer_name": None} for i in range(2)]
     ),
     TableResponse(
         id=3,
@@ -32,7 +32,7 @@ sample_tables: List[TableResponse] = [
         is_occupied=False,
         current_order_id=None,
         status="available",
-        seats=[{"status": "available", "customer_name": None} for _ in range(6)]
+        seats=[{"seat_number": i+1, "status": "available", "customer_name": None} for i in range(6)]
     ),
     TableResponse(
         id=4,
@@ -41,6 +41,6 @@ sample_tables: List[TableResponse] = [
         is_occupied=False,
         current_order_id=None,
         status="available",
-        seats=[{"status": "available", "customer_name": None} for _ in range(4)]
+        seats=[{"seat_number": i+1, "status": "available", "customer_name": None} for i in range(4)]
     )
 ]

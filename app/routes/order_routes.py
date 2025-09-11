@@ -64,6 +64,7 @@ def create_order(order: OrderCreate):
     # Handle table assignment based on order type
     if new_order.order_type == "dine-in":
         # For dine-in orders, we need a table
+        # First check if table_id is provided
         if new_order.table_id:
             table = next((t for t in sample_tables if t.id == new_order.table_id), None)
             if table:
@@ -71,12 +72,28 @@ def create_order(order: OrderCreate):
                 table.current_order_id = new_id
                 table.status = "occupied"
                 
-                # Assign seats if provided
-                if new_order.assigned_seats:
+                # Assign seats if provided and table.seats is not None
+                if new_order.assigned_seats and table.seats:
                     for seat_num in new_order.assigned_seats:
                         if seat_num <= len(table.seats):
                             table.seats[seat_num-1]["status"] = "occupied"
                             table.seats[seat_num-1]["customer_name"] = new_order.customer_name
+        # If no table_id but table_number is provided, find table by number
+        elif new_order.table_number:
+            table = next((t for t in sample_tables if str(t.table_number) == str(new_order.table_number)), None)
+            if table:
+                table.is_occupied = True
+                table.current_order_id = new_id
+                table.status = "occupied"
+                
+                # Assign seats if provided and table.seats is not None
+                if new_order.assigned_seats and table.seats:
+                    for seat_num in new_order.assigned_seats:
+                        if seat_num <= len(table.seats):
+                            table.seats[seat_num-1]["status"] = "occupied"
+                            table.seats[seat_num-1]["customer_name"] = new_order.customer_name
+                # Also set the table_id on the order for consistency
+                new_order.table_id = table.id
     
     return new_order
 
