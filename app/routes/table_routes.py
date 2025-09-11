@@ -125,12 +125,17 @@ def assign_table_to_order(table_id: int, order_id: int):
     table.current_order_id = order_id
     table.status = "occupied"
     
-    # Mark all seats as occupied
+    # Mark all seats as occupied and assign customer name from order
     # Ensure seats is not None before iterating
     if table.seats is None:
         table.seats = []
+    
+    # Get customer name from order if available
+    customer_name = order.customer_name if order.customer_name else None
+    
     for seat in table.seats:
         seat["status"] = "occupied"
+        seat["customer_name"] = customer_name
     
     return table
 

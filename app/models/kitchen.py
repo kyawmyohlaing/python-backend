@@ -5,6 +5,24 @@ from typing import List, Optional
 from datetime import datetime
 from .menu import MenuItemBase
 
+
+class KitchenOrderDetail(BaseModel):
+    id: int
+    order_id: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    order_items: List[MenuItemBase]
+    total: float
+    # New order type information fields
+    order_type: Optional[str] = "dine-in"  # dine-in, takeaway, delivery
+    table_number: Optional[str] = None
+    customer_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class KitchenOrder(Base):
     __tablename__ = "kitchen_orders"
 
@@ -33,14 +51,3 @@ class KitchenOrderResponse(KitchenOrderBase):
     class Config:
         from_attributes = True
 
-class KitchenOrderDetail(BaseModel):
-    id: int
-    order_id: int
-    status: str
-    created_at: datetime
-    updated_at: datetime
-    order_items: List[MenuItemBase]
-    total: float
-
-    class Config:
-        from_attributes = True

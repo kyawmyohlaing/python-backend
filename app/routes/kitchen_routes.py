@@ -24,7 +24,11 @@ def get_kitchen_orders():
                 created_at=kitchen_order.created_at,
                 updated_at=kitchen_order.updated_at,
                 order_items=order.order,
-                total=order.total
+                total=order.total,
+                # Add order type information
+                order_type=order.order_type,
+                table_number=order.table_number,
+                customer_name=order.customer_name
             ))
     return kitchen_orders
 
