@@ -101,6 +101,17 @@ def get_kitchen_printers():
         "printers": kot_service.printers
     }
 
+@router.get("/printers/{printer_id}/status")
+def get_printer_status(printer_id: str):
+    """Get the status of a specific printer or KDS"""
+    try:
+        status = kot_service.get_printer_status(printer_id)
+        if not status.get("success", False):
+            raise HTTPException(status_code=404, detail=status.get("message", "Printer not found"))
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting printer status: {str(e)}")
+
 @router.post("/printers/{printer_id}/test")
 def test_kitchen_printer(printer_id: str):
     """Test connection to a specific kitchen printer or KDS"""

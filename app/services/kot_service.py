@@ -15,16 +15,24 @@ from data.shared_data import sample_orders, sample_kitchen_orders
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Try to import escpos for physical printer support
+try:
+    from escpos.printer import Usb, Network
+    ESCPOS_AVAILABLE = True
+except ImportError:
+    ESCPOS_AVAILABLE = False
+    logger.warning("python-escpos not installed. Physical printer support disabled.")
+
 class KOTService:
     """Service for handling Kitchen Order Tickets"""
     
     def __init__(self):
         # In a real implementation, this would connect to actual printers or KDS
         self.printers = {
-            "main_kitchen": {"type": "printer", "location": "Main Kitchen", "enabled": True},
-            "grill_station": {"type": "printer", "location": "Grill Station", "enabled": True},
-            "beverage_station": {"type": "kds", "location": "Beverage Station", "enabled": True},
-            "dessert_station": {"type": "printer", "location": "Dessert Station", "enabled": True}
+            "main_kitchen": {"type": "printer", "location": "Main Kitchen", "enabled": True, "connection": "USB", "vendor_id": 0x04b8, "product_id": 0x0202},
+            "grill_station": {"type": "printer", "location": "Grill Station", "enabled": True, "connection": "USB", "vendor_id": 0x04b8, "product_id": 0x0202},
+            "beverage_station": {"type": "kds", "location": "Beverage Station", "enabled": True, "connection": "network"},
+            "dessert_station": {"type": "printer", "location": "Dessert Station", "enabled": True, "connection": "USB", "vendor_id": 0x04b8, "product_id": 0x0202}
         }
     
     def generate_kot_content(self, kitchen_order: KitchenOrderDetail) -> str:
@@ -115,18 +123,182 @@ class KOTService:
             # Generate KOT content
             kot_content = self.generate_kot_content(kitchen_order)
             
-            # In a real implementation, this would send to an actual printer or KDS
-            # For now, we'll just log it
+            # Get printer info
             printer_info = self.printers[printer_id]
-            logger.info(f"[KOT SERVICE] Sending to {printer_id} ({printer_info['type']} at {printer_info['location']}):")
-            logger.info(kot_content)
             
-            # Simulate successful sending
-            return {"success": True, "message": f"KOT sent to {printer_id}", "content": kot_content}
+            # Handle different types of output devices
+            if printer_info["type"] == "kds":
+                # For KDS, we might want to send structured data instead of plain text
+                result = self._send_to_kds(kitchen_order, printer_id, kot_content)
+            else:
+                # For physical printers, send plain text
+                result = self._send_to_physical_printer(kitchen_order, printer_id, kot_content)
+            
+            return result
         except Exception as e:
-            error_msg = f"[KOT SERVICE] Error sending to printer {printer_id}: {str(e)}"
+            error_msg = f"[KOT SERVICE] Error sending to {printer_id}: {str(e)}"
             logger.error(error_msg)
             return {"success": False, "message": error_msg}
+    
+    def _send_to_physical_printer(self, kitchen_order: KitchenOrderDetail, printer_id: str, kot_content: str) -> Dict[str, any]:
+        """
+        Send KOT to a physical printer
+        
+        Args:
+            kitchen_order: The kitchen order to send
+            printer_id: ID of the printer to send to
+            kot_content: Formatted KOT content
+            
+        Returns:
+            Dictionary with success status and message
+        """
+        try:
+            printer_info = self.printers[printer_id]
+            
+            # Check if escpos is available
+            if not ESCPOS_AVAILABLE:
+                logger.info(f"[KOT SERVICE] Escpos not available, simulating print to {printer_id} ({printer_info['location']})")
+                logger.info(kot_content)
+                return {"success": True, "message": f"Simulated print to {printer_id}", "content": kot_content}
+            
+            # Handle USB printer
+            if printer_info.get("connection") == "USB":
+                # Get printer identifiers
+                vendor_id = printer_info.get("vendor_id", 0x04b8)
+                product_id = printer_info.get("product_id", 0x0202)
+                timeout = printer_info.get("timeout", 0)
+                in_ep = printer_info.get("in_ep", 0x81)
+                out_ep = printer_info.get("out_ep", 0x03)
+                
+                # Connect to printer
+                printer = Usb(vendor_id, product_id, timeout, in_ep, out_ep)
+                
+                # Print content
+                printer.text(kot_content)
+                printer.cut()
+                
+                # Close connection
+                printer.close()
+                
+                logger.info(f"[KOT SERVICE] Printed to USB printer {printer_id}")
+                return {"success": True, "message": f"KOT sent to USB printer {printer_id}", "content": kot_content}
+            
+            # Handle network printer
+            elif printer_info.get("connection") == "network":
+                # Get network details
+                ip_address = printer_info.get("ip_address", "127.0.0.1")
+                port = printer_info.get("port", 9100)
+                
+                # Connect to network printer
+                printer = Network(ip_address, port)
+                
+                # Print content
+                printer.text(kot_content)
+                printer.cut()
+                
+                # Close connection
+                printer.close()
+                
+                logger.info(f"[KOT SERVICE] Printed to network printer {printer_id}")
+                return {"success": True, "message": f"KOT sent to network printer {printer_id}", "content": kot_content}
+            
+            # Fallback to simulation if connection type not supported
+            else:
+                logger.info(f"[KOT SERVICE] Unknown connection type, simulating print to {printer_id} ({printer_info['location']})")
+                logger.info(kot_content)
+                return {"success": True, "message": f"Simulated print to {printer_id}", "content": kot_content}
+                
+        except Exception as e:
+            error_msg = f"[KOT SERVICE] Error sending to physical printer {printer_id}: {str(e)}"
+            logger.error(error_msg)
+            return {"success": False, "message": error_msg}
+    
+    def _send_to_kds(self, kitchen_order: KitchenOrderDetail, kds_id: str, kot_content: str) -> Dict[str, any]:
+        """
+        Send KOT to a Kitchen Display System
+        
+        Args:
+            kitchen_order: The kitchen order to send
+            kds_id: ID of the KDS to send to
+            kot_content: Formatted KOT content
+            
+        Returns:
+            Dictionary with success status and message
+        """
+        try:
+            kds_info = self.printers[kds_id]
+            logger.info(f"[KOT SERVICE] Sending to KDS {kds_id} ({kds_info['location']}):")
+            logger.info(kot_content)
+            
+            # For KDS, we might want to send structured data
+            # In a real implementation, this could be:
+            # 1. A direct API call to the KDS
+            # 2. A message queue (like RabbitMQ or Kafka)
+            # 3. A WebSocket connection
+            # 4. A database update that the KDS monitors
+            
+            # Example structured data for KDS:
+            kds_data = {
+                "order_id": kitchen_order.order_id,
+                "kds_id": kds_id,
+                "items": [
+                    {
+                        "name": item.name,
+                        "price": item.price,
+                        "category": getattr(item, 'category', ''),
+                        "modifiers": self._get_item_modifiers(kitchen_order, item)
+                    }
+                    for item in kitchen_order.order_items
+                ],
+                "table_number": kitchen_order.table_number,
+                "customer_name": kitchen_order.customer_name,
+                "order_type": kitchen_order.order_type,
+                "timestamp": kitchen_order.created_at.isoformat(),
+                "status": kitchen_order.status
+            }
+            
+            # In a real implementation, you might do something like:
+            # requests.post(f"http://{kds_info['ip_address']}/api/orders", json=kds_data)
+            # or
+            # websocket.send(json.dumps(kds_data))
+            
+            logger.info(f"[KOT SERVICE] KDS data: {json.dumps(kds_data, indent=2)}")
+            
+            # Simulate successful sending
+            return {
+                "success": True, 
+                "message": f"KOT sent to KDS {kds_id}", 
+                "content": kot_content,
+                "kds_data": kds_data
+            }
+        except Exception as e:
+            error_msg = f"[KOT SERVICE] Error sending to KDS {kds_id}: {str(e)}"
+            logger.error(error_msg)
+            return {"success": False, "message": error_msg}
+    
+    def _get_item_modifiers(self, kitchen_order: KitchenOrderDetail, item) -> List[str]:
+        """
+        Extract modifiers for a specific item
+        
+        Args:
+            kitchen_order: The kitchen order
+            item: The menu item
+            
+        Returns:
+            List of modifiers for the item
+        """
+        if hasattr(kitchen_order, 'modifiers') and kitchen_order.modifiers:
+            # Try to get modifiers for this specific item
+            modifiers = kitchen_order.modifiers.get(item.name, [])
+            if not modifiers:
+                # Try with index-based approach
+                try:
+                    item_index = kitchen_order.order_items.index(item)
+                    modifiers = kitchen_order.modifiers.get(str(item_index), [])
+                except ValueError:
+                    pass
+            return modifiers
+        return []
     
     def route_order_to_stations(self, kitchen_order: KitchenOrderDetail) -> Dict[str, Dict[str, any]]:
         """
@@ -223,6 +395,32 @@ class KOTService:
         
         # Route to appropriate stations
         return self.route_order_to_stations(kitchen_order)
+
+    def get_printer_status(self, printer_id: str) -> Dict[str, any]:
+        """
+        Get the status of a specific printer or KDS
+        
+        Args:
+            printer_id: ID of the printer/KDS to check
+            
+        Returns:
+            Dictionary with status information
+        """
+        if printer_id not in self.printers:
+            return {"success": False, "message": f"Printer {printer_id} not found"}
+        
+        printer_info = self.printers[printer_id]
+        # In a real implementation, you would check actual printer status
+        # For now, we'll just return the configured status
+        return {
+            "success": True,
+            "printer_id": printer_id,
+            "type": printer_info["type"],
+            "location": printer_info["location"],
+            "enabled": printer_info["enabled"],
+            "connection": printer_info["connection"],
+            "status": "online" if printer_info["enabled"] else "offline"
+        }
 
 
 # Global instance of KOTService
