@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KOT Printing Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .log {
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            height: 300px;
+            overflow-y: scroll;
+            font-family: monospace;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>KOT Printing Test</h1>
+    
+    <div>
+        <h2>Create Test Order</h2>
+        <button class="button" onclick="createTestOrder()">Create Test Order</button>
+    </div>
+    
+    <div>
+        <h2>Print KOT</h2>
+        <button class="button" onclick="printKOT()" id="printButton" disabled>Print KOT</button>
+    </div>
+    
+    <div id="status"></div>
+    <div id="log" class="log"></div>
+
+    <script>
+        let currentOrderId = null;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function setStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status ' + (type || '');
+            statusDiv.textContent = message;
+        }
+        
+        async function createTestOrder() {
+            log('Creating test order...');
+            
+            const orderData = {
+                order: [
+                    {name: "Burger", price: 8.99, category: "Main Course"},
+                    {name: "Fries", price: 3.99, category: "Sides"},
+                    {name: "Soda", price: 2.99, category: "Beverages"},
+                    {name: "Ice Cream", price: 4.99, category: "Desserts"}
+                ],
+                total: 20.96,
+                order_type: "dine-in",
+                table_number: "7",
+                customer_name: "Jane Smith"
+            };
+            
+            try {
+                const response = await fetch('http://localhost:8088/api/orders/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(orderData)
+                });
+                
+                if (response.ok) {
+                    const order = await response.json();
+                    currentOrderId = order.id;
+                    log(`Order created successfully. Order ID: ${order.id}`);
+                    setStatus(`Order #${order.id} created successfully`, 'success');
+                    document.getElementById('printButton').disabled = false;
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                log(`Error creating order: ${error.message}`);
+                setStatus(`Error creating order: ${error.message}`, 'error');
+            }
+        }
+        
+        async function printKOT() {
+            if (!currentOrderId) {
+                log('No order created yet. Please create an order first.');
+                setStatus('No order created yet. Please create an order first.', 'error');
+                return;
+            }
+            
+            log(`Printing KOT for order #${currentOrderId}...`);
+            
+            try {
+                const response = await fetch(`http://localhost:8088/api/kitchen/orders/${currentOrderId}/print-kot`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log(`KOT printed successfully: ${result.message}`);
+                    setStatus(`KOT printed successfully for order #${currentOrderId}`, 'success');
+                    
+                    // Log detailed results
+                    log('Printing details by station:');
+                    for (const [station, stationResult] of Object.entries(result.results)) {
+                        log(`  ${station}: ${stationResult.message}`);
+                        if (stationResult.content) {
+                            log(`    Content: ${stationResult.content.substring(0, 100)}...`);
+                        }
+                        if (stationResult.kds_data) {
+                            log(`    KDS Data: ${JSON.stringify(stationResult.kds_data)}`);
+                        }
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                log(`Error printing KOT: ${error.message}`);
+                setStatus(`Error printing KOT: ${error.message}`, 'error');
+            }
+        }
+        
+        // Initialize
+        log('KOT Printing Test Interface Ready');
+        log('1. Click "Create Test Order" to create a sample order');
+        log('2. Click "Print KOT" to generate and print the Kitchen Order Ticket');
+        log('Note: Since python-escpos is not installed, printing is simulated');
+        setStatus('Ready to create test order');
+    </script>
+</body>
+</html>
