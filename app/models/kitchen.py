@@ -28,7 +28,7 @@ class KitchenOrder(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"))
-    status = Column(String, default="pending")  # pending, preparing, ready
+    status = Column(String, default="pending")  # pending, preparing, ready, served
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -50,4 +50,3 @@ class KitchenOrderResponse(KitchenOrderBase):
 
     class Config:
         from_attributes = True
-

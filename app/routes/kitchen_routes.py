@@ -81,6 +81,11 @@ def update_kitchen_order_status(order_id: int, kitchen_order_update: KitchenOrde
     if not kitchen_order:
         raise HTTPException(status_code=404, detail="Kitchen order not found")
     
+    # Validate status - only allow valid statuses
+    valid_statuses = ["pending", "preparing", "ready", "served"]
+    if kitchen_order_update.status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
+    
     # Update the status
     kitchen_order.status = kitchen_order_update.status
     kitchen_order.updated_at = datetime.now()
@@ -92,6 +97,26 @@ def remove_kitchen_order(order_id: int):
     global sample_kitchen_orders
     sample_kitchen_orders = [ko for ko in sample_kitchen_orders if ko.order_id != order_id]
     return {"message": "Order removed from kitchen display"}
+
+@router.post("/orders/{order_id}/mark-served")
+def mark_order_as_served(order_id: int):
+    """Mark an order as served and remove it from the kitchen display"""
+    # Find the kitchen order
+    kitchen_order = next((ko for ko in sample_kitchen_orders if ko.order_id == order_id), None)
+    if not kitchen_order:
+        raise HTTPException(status_code=404, detail="Kitchen order not found")
+    
+    # Update the status to served
+    kitchen_order.status = "served"
+    kitchen_order.updated_at = datetime.now()
+    
+    # Optionally remove from kitchen display after marking as served
+    # This keeps the order in the system but marks it as completed
+    # If you want to completely remove it, uncomment the following lines:
+    # global sample_kitchen_orders
+    # sample_kitchen_orders = [ko for ko in sample_kitchen_orders if ko.order_id != order_id]
+    
+    return {"message": "Order marked as served", "order_id": order_id, "status": "served"}
 
 @router.get("/printers")
 def get_kitchen_printers():

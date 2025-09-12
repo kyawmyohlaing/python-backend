@@ -178,6 +178,42 @@ def update_order(order_id: int, order_update: OrderUpdate):
     
     return order
 
+@router.put("/{order_id}/status", response_model=OrderResponse)
+def update_order_status(order_id: int, status_update: dict):
+    """Update the status of an order"""
+    order = next((o for o in sample_orders if o.id == order_id), None)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Find the corresponding kitchen order
+    kitchen_order = next((ko for ko in sample_kitchen_orders if ko.order_id == order_id), None)
+    if kitchen_order:
+        # Validate status - only allow valid statuses
+        valid_statuses = ["pending", "preparing", "ready", "served"]
+        new_status = status_update.get("status")
+        if new_status not in valid_statuses:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
+        
+        # Update the kitchen order status
+        kitchen_order.status = new_status
+        kitchen_order.updated_at = datetime.now()
+        
+        # If the order is marked as served, we might want to release the table
+        if new_status == "served" and order.order_type == "dine-in":
+            # Release the table
+            if order.table_id:
+                table = next((t for t in sample_tables if t.id == order.table_id), None)
+                if table:
+                    table.is_occupied = False
+                    table.current_order_id = None
+                    table.status = "available"
+                    # Release all seats
+                    for seat in table.seats:
+                        seat["status"] = "available"
+                        seat["customer_name"] = None
+    
+    return order
+
 @router.delete("/{order_id}")
 def delete_order(order_id: int):
     """Delete an order"""
@@ -200,3 +236,32 @@ def delete_order(order_id: int):
     
     sample_orders = [o for o in sample_orders if o.id != order_id]
     return {"message": "Order deleted successfully"}
+
+@router.post("/{order_id}/mark-served")
+def mark_order_as_served(order_id: int):
+    """Mark an order as served and release associated resources"""
+    order = next((o for o in sample_orders if o.id == order_id), None)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Find the corresponding kitchen order
+    kitchen_order = next((ko for ko in sample_kitchen_orders if ko.order_id == order_id), None)
+    if kitchen_order:
+        # Update the kitchen order status to served
+        kitchen_order.status = "served"
+        kitchen_order.updated_at = datetime.now()
+    
+    # If it's a dine-in order, release the table
+    if order.order_type == "dine-in":
+        if order.table_id:
+            table = next((t for t in sample_tables if t.id == order.table_id), None)
+            if table:
+                table.is_occupied = False
+                table.current_order_id = None
+                table.status = "available"
+                # Release all seats
+                for seat in table.seats:
+                    seat["status"] = "available"
+                    seat["customer_name"] = None
+    
+    return {"message": "Order marked as served", "order_id": order_id}
