@@ -61,7 +61,12 @@ def run_migrations_offline():
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    # Import the Config class and get database URL properly
+    from config import Config
+    app_config = Config()
+    database_url = app_config.DATABASE_URL or "postgresql://postgres:password@localhost:5432/mydb"
+    
+    url = database_url
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -84,7 +89,7 @@ def run_migrations_online():
     # Since we're in the container and files are directly in /app, we import directly
     from config import Config
     app_config = Config()
-    database_url = app_config.DATABASE_URL or "postgresql://username:password@localhost:5432/mydb"
+    database_url = app_config.DATABASE_URL or "postgresql://postgres:password@localhost:5432/mydb"
     config.set_main_option('sqlalchemy.url', database_url)
     
     # Get the configuration section, providing an empty dict as fallback

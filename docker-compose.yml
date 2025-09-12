@@ -21,7 +21,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:password@db:5432/mydb}
       SECRET_KEY: ${SECRET_KEY}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
-      ENVIRONMENT: ${ENVIRONMENT:-production}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
     ports:
       - "${PORT:-8088}:8088"
     restart: always

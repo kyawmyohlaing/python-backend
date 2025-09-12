@@ -241,6 +241,7 @@ For detailed information about the project architecture and features:
 - [API Documentation](API_DOCUMENTATION.md) - Detailed API endpoint documentation
 - [Backup Documentation](BACKUP_DOCUMENTATION.md) - Database backup and restore procedures
 - [Docker Troubleshooting Guide](TROUBLESHOOTING_DOCKER.md) - Resolving common Docker container issues
+- [Database Troubleshooting Guide](DATABASE_TROUBLESHOOTING.md) - Resolving database configuration and connectivity issues
 
 ## 🔄 Database Backup
 
@@ -275,6 +276,60 @@ The backend is configured to allow cross-origin requests from the React frontend
 ### Integration Guide
 
 For detailed information about integrating with the React frontend, see [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md).
+
+## 🐘 PostgreSQL Setup
+
+This template is configured to use PostgreSQL as the primary database. Here's how to set it up:
+
+### Using Docker (Recommended)
+
+The easiest way to run PostgreSQL is using Docker:
+
+```bash
+# Start PostgreSQL database
+docker-compose up -d db
+
+# Check if the database is running
+docker-compose ps
+```
+
+### Manual PostgreSQL Installation
+
+If you prefer to install PostgreSQL manually:
+
+1. Download and install PostgreSQL from [postgresql.org](https://www.postgresql.org/download/)
+2. Create a database for the application:
+   ```sql
+   CREATE DATABASE mydb;
+   CREATE USER postgres WITH PASSWORD 'password';
+   GRANT ALL PRIVILEGES ON DATABASE mydb TO postgres;
+   ```
+
+### Environment Configuration
+
+Update your `.env` file with the PostgreSQL connection details:
+
+```env
+# Database settings
+DATABASE_URL=postgresql://postgres:password@localhost:5432/mydb
+DEV_DATABASE_URL=postgresql://postgres:password@localhost:5432/mydb
+TEST_DATABASE_URL=postgresql://postgres:password@localhost:5432/mydb_test
+PROD_DATABASE_URL=postgresql://postgres:password@localhost:5432/mydb_prod
+```
+
+### Initializing the Database
+
+After configuring PostgreSQL, initialize the database with tables and sample data:
+
+```bash
+# Using the initialization script
+python init_postgres.py
+
+# Or using Docker
+docker-compose run web python init_postgres.py
+```
+
+This will create all necessary tables and populate them with sample data for testing.
 
 ## 🤝 Contributing
 
