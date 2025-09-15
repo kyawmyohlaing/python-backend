@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 # Since we're in the container and files are directly in /app, we import directly
-from routes import user_router, menu_router, order_router, kitchen_router, table_router
+from routes import user_router, menu_router, order_router, kitchen_router, table_router, invoice_router
 from database import Base, engine
 from config import Config
 
@@ -25,6 +25,7 @@ app.include_router(menu_router)
 app.include_router(order_router)
 app.include_router(kitchen_router)
 app.include_router(table_router)
+app.include_router(invoice_router)
 
 @app.get("/")
 def root():

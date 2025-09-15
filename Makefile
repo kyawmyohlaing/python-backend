@@ -1,77 +1,66 @@
-# Makefile for FastAPI backend template
+# Makefile for FastAPI Backend
 
 # Variables
-PYTHON = python3
-PYTEST = pytest
-APP_DIR = app
-TESTS_DIR = tests
+PYTHON := python3
+APP := app/main.py
+TEST := tests/
+REQ := requirements.txt
 
 # Default target
 .PHONY: help
 help:
-	@echo "FastAPI Backend Template - Available Commands:"
-	@echo "  make dev          - Start development server"
-	@echo "  make prod         - Start production server"
-	@echo "  make test         - Run all tests"
-	@echo "  make test-tables  - Run table management tests"
-	@echo "  make test-users   - Run user-related tests"
-	@echo "  make migrate      - Run database migrations"
-	@echo "  make clean        - Clean Python cache files"
-	@echo "  make logs         - View container logs"
-	@echo "  make backup       - Create database backup"
-	@echo "  make restore      - Restore database from backup"
+	@echo "FastAPI Backend Makefile"
+	@echo "========================"
+	@echo "dev     - Run development server"
+	@echo "prod    - Run production server"
+	@echo "test    - Run all tests"
+	@echo "test-invoice - Run invoice functionality tests"
+	@echo "install - Install dependencies"
+	@echo "migrate - Run database migrations"
+	@echo "logs    - Show server logs"
+	@echo "clean   - Clean temporary files"
 
 # Development server
 .PHONY: dev
 dev:
-	docker-compose up -d
+	$(PYTHON) $(APP)
 
 # Production server
 .PHONY: prod
 prod:
-	docker-compose -f docker-compose.yml up -d
+	gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 
-# Run all tests
+# Run tests
 .PHONY: test
 test:
-	$(PYTHON) -m $(PYTEST) $(TESTS_DIR) -v
+	$(PYTHON) -m pytest $(TEST) -v
 
-# Run table management tests
-.PHONY: test-tables
-test-tables:
-	$(PYTHON) run_table_tests.py
+# Run invoice tests
+.PHONY: test-invoice
+test-invoice:
+	$(PYTHON) test_invoice_functionality.py
 
-# Run user-related tests
-.PHONY: test-users
-test-users:
-	$(PYTHON) -m $(PYTEST) $(TESTS_DIR)/test_users* -v
+# Install dependencies
+.PHONY: install
+install:
+	pip install -r $(REQ)
 
-# Run database migrations
+# Run migrations
 .PHONY: migrate
 migrate:
-	docker-compose run --rm web alembic upgrade head
+	alembic upgrade head
 
-# Clean Python cache files
-.PHONY: clean
-clean:
-	find . -type f -name "*.pyc" -delete
-	find . -type d -name "__pycache__" -delete
-	find . -type f -name "*.pyo" -delete
-	find . -type f -name "*~" -delete
-	find . -type f -name ".DS_Store" -delete
-
-# View container logs
+# Show logs
 .PHONY: logs
 logs:
-	docker-compose logs -f
+	tail -f logs/app.log
 
-# Create database backup
-.PHONY: backup
-backup:
-	./backup_once.sh
-
-# Restore database from backup
-.PHONY: restore
-restore:
-	@echo "To restore database, use:"
-	@echo "./restore_db.sh <backup_file>"
+# Clean temporary files
+.PHONY: clean
+clean:
+	rm -rf __pycache__/
+	rm -rf app/__pycache__/
+	rm -rf tests/__pycache__/
+	rm -rf app/migrations/__pycache__/
+	rm -rf logs/
+	find . -type f -name "*.pyc" -delete
