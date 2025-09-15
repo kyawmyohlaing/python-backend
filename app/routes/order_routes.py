@@ -8,122 +8,184 @@ from models.order import Order, OrderCreate, OrderUpdate, OrderResponse, OrderIt
 from models.menu import MenuItem
 from models.kitchen import KitchenOrderCreate, KitchenOrderResponse
 from models.table import TableResponse
-from data.shared_data import sample_orders, sample_kitchen_orders, sample_tables
+from data.shared_data import sample_kitchen_orders, sample_tables
 from services.kot_service import kot_service
 
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
-@router.get("/", response_model=List[OrderResponse])
-def get_orders():
-    """Get all orders"""
-    return sample_orders
-
-@router.get("/{order_id}", response_model=OrderResponse)
-def get_order(order_id: int):
-    """Get a specific order by ID"""
-    order = next((o for o in sample_orders if o.id == order_id), None)
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return order
-
-@router.post("/", response_model=OrderResponse)
-def create_order(order: OrderCreate):
-    """Create a new order"""
-    # In a real application, this would save to the database
-    new_id = len(sample_orders) + 1
+# Helper function to convert Order model to OrderResponse
+def order_model_to_response(order: Order) -> OrderResponse:
+    """Convert Order database model to OrderResponse Pydantic model"""
+    # Parse order_data and modifiers from JSON strings
+    order_items = json.loads(order.order_data) if order.order_data else []
+    modifiers = json.loads(order.modifiers) if order.modifiers else None
+    assigned_seats = json.loads(order.assigned_seats) if order.assigned_seats else None
     
-    # Create new order with all the fields from the request
-    new_order = OrderResponse(
-        id=new_id,
-        order=order.order,
+    # Convert order items to OrderItem objects
+    order_item_objects = [
+        OrderItem(
+            name=item.get("name", ""),
+            price=item.get("price", 0.0),
+            category=item.get("category", ""),
+            modifiers=item.get("modifiers", [])
+        ) for item in order_items
+    ]
+    
+    return OrderResponse(
+        id=order.id,
+        order=order_item_objects,
         total=order.total,
+        timestamp=order.timestamp,
         table_id=order.table_id,
         customer_count=order.customer_count,
         special_requests=order.special_requests,
-        assigned_seats=order.assigned_seats,
-        # Include new order type fields
+        assigned_seats=assigned_seats,
         order_type=order.order_type,
         table_number=order.table_number,
         customer_name=order.customer_name,
         customer_phone=order.customer_phone,
         delivery_address=order.delivery_address,
-        modifiers=order.modifiers,
-        timestamp=datetime.now()
+        modifiers=modifiers
     )
-    sample_orders.append(new_order)
-    
-    # Automatically add the order to the kitchen
-    kitchen_order = KitchenOrderResponse(
-        id=len(sample_kitchen_orders) + 1,
-        order_id=new_id,
-        status="pending",
-        created_at=datetime.now(),
-        updated_at=datetime.now()
-    )
-    sample_kitchen_orders.append(kitchen_order)
-    
-    # Automatically print KOT for the new order
+
+@router.get("/", response_model=List[OrderResponse])
+def get_orders(db: Session = Depends(get_db)):
+    """Get all orders from database"""
+    orders = db.query(Order).all()
+    return [order_model_to_response(order) for order in orders]
+
+@router.get("/{order_id}", response_model=OrderResponse)
+def get_order(order_id: int, db: Session = Depends(get_db)):
+    """Get a specific order by ID from database"""
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return order_model_to_response(order)
+
+@router.post("/", response_model=OrderResponse)
+def create_order(order: OrderCreate, db: Session = Depends(get_db)):
+    """Create a new order in database"""
     try:
-        kot_service.print_kot_for_order(new_id)
+        # Convert order items to JSON-serializable format
+        order_items_dict = [
+            {
+                "name": item.name,
+                "price": item.price,
+                "category": item.category,
+                "modifiers": item.modifiers or []
+            }
+            for item in order.order
+        ]
+        
+        # Create new order in database
+        db_order = Order(
+            total=order.total,
+            order_data=json.dumps(order_items_dict),
+            table_id=order.table_id,
+            customer_count=order.customer_count,
+            special_requests=order.special_requests,
+            assigned_seats=json.dumps(order.assigned_seats) if order.assigned_seats else None,
+            order_type=order.order_type,
+            table_number=order.table_number,
+            customer_name=order.customer_name,
+            customer_phone=order.customer_phone,
+            delivery_address=order.delivery_address,
+            modifiers=json.dumps(order.modifiers) if order.modifiers else None
+        )
+        
+        db.add(db_order)
+        db.commit()
+        db.refresh(db_order)
+        
+        # Convert to response format
+        response_order = order_model_to_response(db_order)
+        
+        # Automatically add the order to the kitchen (still using in-memory for kitchen orders)
+        kitchen_order = KitchenOrderResponse(
+            id=len(sample_kitchen_orders) + 1,
+            order_id=db_order.id,
+            status="pending",
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        sample_kitchen_orders.append(kitchen_order)
+        
+        # Automatically print KOT for the new order
+        try:
+            kot_service.print_kot_for_order(db_order.id)
+        except Exception as e:
+            # Log the error but don't fail the order creation
+            print(f"Warning: Failed to print KOT for order {db_order.id}: {str(e)}")
+        
+        # Handle table assignment based on order type
+        if response_order.order_type == "dine-in":
+            # For dine-in orders, we need a table
+            # First check if table_id is provided
+            if response_order.table_id:
+                table = next((t for t in sample_tables if t.id == response_order.table_id), None)
+                if table:
+                    table.is_occupied = True
+                    table.current_order_id = db_order.id
+                    table.status = "occupied"
+                    
+                    # Assign seats if provided and table.seats is not None
+                    if response_order.assigned_seats and table.seats:
+                        for seat_num in response_order.assigned_seats:
+                            if seat_num <= len(table.seats):
+                                table.seats[seat_num-1]["status"] = "occupied"
+                                table.seats[seat_num-1]["customer_name"] = response_order.customer_name
+            # If no table_id but table_number is provided, find table by number
+            elif response_order.table_number:
+                table = next((t for t in sample_tables if str(t.table_number) == str(response_order.table_number)), None)
+                if table:
+                    table.is_occupied = True
+                    table.current_order_id = db_order.id
+                    table.status = "occupied"
+                    
+                    # Assign seats if provided and table.seats is not None
+                    if response_order.assigned_seats and table.seats:
+                        for seat_num in response_order.assigned_seats:
+                            if seat_num <= len(table.seats):
+                                table.seats[seat_num-1]["status"] = "occupied"
+                                table.seats[seat_num-1]["customer_name"] = response_order.customer_name
+                    # Also set the table_id on the order for consistency
+                    response_order.table_id = table.id
+        
+        return response_order
     except Exception as e:
-        # Log the error but don't fail the order creation
-        print(f"Warning: Failed to print KOT for order {new_id}: {str(e)}")
-    
-    # Handle table assignment based on order type
-    if new_order.order_type == "dine-in":
-        # For dine-in orders, we need a table
-        # First check if table_id is provided
-        if new_order.table_id:
-            table = next((t for t in sample_tables if t.id == new_order.table_id), None)
-            if table:
-                table.is_occupied = True
-                table.current_order_id = new_id
-                table.status = "occupied"
-                
-                # Assign seats if provided and table.seats is not None
-                if new_order.assigned_seats and table.seats:
-                    for seat_num in new_order.assigned_seats:
-                        if seat_num <= len(table.seats):
-                            table.seats[seat_num-1]["status"] = "occupied"
-                            table.seats[seat_num-1]["customer_name"] = new_order.customer_name
-        # If no table_id but table_number is provided, find table by number
-        elif new_order.table_number:
-            table = next((t for t in sample_tables if str(t.table_number) == str(new_order.table_number)), None)
-            if table:
-                table.is_occupied = True
-                table.current_order_id = new_id
-                table.status = "occupied"
-                
-                # Assign seats if provided and table.seats is not None
-                if new_order.assigned_seats and table.seats:
-                    for seat_num in new_order.assigned_seats:
-                        if seat_num <= len(table.seats):
-                            table.seats[seat_num-1]["status"] = "occupied"
-                            table.seats[seat_num-1]["customer_name"] = new_order.customer_name
-                # Also set the table_id on the order for consistency
-                new_order.table_id = table.id
-    
-    return new_order
+        # Log the error and rollback the transaction
+        print(f"Error creating order: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.put("/{order_id}", response_model=OrderResponse)
-def update_order(order_id: int, order_update: OrderUpdate):
-    """Update an existing order"""
-    order = next((o for o in sample_orders if o.id == order_id), None)
-    if not order:
+def update_order(order_id: int, order_update: OrderUpdate, db: Session = Depends(get_db)):
+    """Update an existing order in database"""
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
     
     # Update order fields if provided
     if order_update.order is not None:
-        order.order = order_update.order
+        order_items_dict = [
+            {
+                "name": item.name,
+                "price": item.price,
+                "category": item.category,
+                "modifiers": item.modifiers or []
+            }
+            for item in order_update.order
+        ]
+        db_order.order_data = json.dumps(order_items_dict)
     
     if order_update.total is not None:
-        order.total = order_update.total
+        db_order.total = order_update.total
     
     if order_update.table_id is not None:
         # If table is being changed, update both old and new table statuses
-        if order.table_id and order.table_id != order_update.table_id:
+        if db_order.table_id and db_order.table_id != order_update.table_id:
             # Release old table
-            old_table = next((t for t in sample_tables if t.id == order.table_id), None)
+            old_table = next((t for t in sample_tables if t.id == db_order.table_id), None)
             if old_table:
                 old_table.is_occupied = False
                 old_table.current_order_id = None
@@ -146,46 +208,52 @@ def update_order(order_id: int, order_update: OrderUpdate):
                     if seat_num <= len(new_table.seats):
                         new_table.seats[seat_num-1]["status"] = "occupied"
         
-        order.table_id = order_update.table_id
+        db_order.table_id = order_update.table_id
     
     if order_update.customer_count is not None:
-        order.customer_count = order_update.customer_count
+        db_order.customer_count = order_update.customer_count
     
     if order_update.special_requests is not None:
-        order.special_requests = order_update.special_requests
+        db_order.special_requests = order_update.special_requests
     
     if order_update.assigned_seats is not None:
-        order.assigned_seats = order_update.assigned_seats
+        db_order.assigned_seats = json.dumps(order_update.assigned_seats)
     
     # Update new order type fields if provided
     if order_update.order_type is not None:
-        order.order_type = order_update.order_type
+        db_order.order_type = order_update.order_type
     
     if order_update.table_number is not None:
-        order.table_number = order_update.table_number
+        db_order.table_number = order_update.table_number
     
     if order_update.customer_name is not None:
-        order.customer_name = order_update.customer_name
+        db_order.customer_name = order_update.customer_name
     
     if order_update.customer_phone is not None:
-        order.customer_phone = order_update.customer_phone
+        db_order.customer_phone = order_update.customer_phone
     
     if order_update.delivery_address is not None:
-        order.delivery_address = order_update.delivery_address
+        db_order.delivery_address = order_update.delivery_address
     
     if order_update.modifiers is not None:
-        order.modifiers = order_update.modifiers
+        db_order.modifiers = json.dumps(order_update.modifiers)
     
-    return order
+    db.commit()
+    db.refresh(db_order)
+    
+    return order_model_to_response(db_order)
 
 @router.put("/{order_id}/status", response_model=OrderResponse)
-def update_order_status(order_id: int, status_update: dict):
+def update_order_status(order_id: int, status_update: dict, db: Session = Depends(get_db)):
     """Update the status of an order"""
-    order = next((o for o in sample_orders if o.id == order_id), None)
-    if not order:
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
     
-    # Find the corresponding kitchen order
+    # Convert to response format for table management
+    response_order = order_model_to_response(db_order)
+    
+    # Find the corresponding kitchen order (still using in-memory for kitchen orders)
     kitchen_order = next((ko for ko in sample_kitchen_orders if ko.order_id == order_id), None)
     if kitchen_order:
         # Validate status - only allow valid statuses
@@ -199,10 +267,10 @@ def update_order_status(order_id: int, status_update: dict):
         kitchen_order.updated_at = datetime.now()
         
         # If the order is marked as served, we might want to release the table
-        if new_status == "served" and order.order_type == "dine-in":
+        if new_status == "served" and response_order.order_type == "dine-in":
             # Release the table
-            if order.table_id:
-                table = next((t for t in sample_tables if t.id == order.table_id), None)
+            if response_order.table_id:
+                table = next((t for t in sample_tables if t.id == response_order.table_id), None)
                 if table:
                     table.is_occupied = False
                     table.current_order_id = None
@@ -212,19 +280,21 @@ def update_order_status(order_id: int, status_update: dict):
                         seat["status"] = "available"
                         seat["customer_name"] = None
     
-    return order
+    return order_model_to_response(db_order)
 
 @router.delete("/{order_id}")
-def delete_order(order_id: int):
-    """Delete an order"""
-    global sample_orders
-    order = next((o for o in sample_orders if o.id == order_id), None)
-    if not order:
+def delete_order(order_id: int, db: Session = Depends(get_db)):
+    """Delete an order from database"""
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
     
+    # Convert to response format for table management
+    response_order = order_model_to_response(db_order)
+    
     # If order has an assigned table, release it
-    if order.table_id:
-        table = next((t for t in sample_tables if t.id == order.table_id), None)
+    if response_order.table_id:
+        table = next((t for t in sample_tables if t.id == response_order.table_id), None)
         if table:
             table.is_occupied = False
             table.current_order_id = None
@@ -234,17 +304,21 @@ def delete_order(order_id: int):
                 seat["status"] = "available"
                 seat["customer_name"] = None
     
-    sample_orders = [o for o in sample_orders if o.id != order_id]
+    db.delete(db_order)
+    db.commit()
     return {"message": "Order deleted successfully"}
 
 @router.post("/{order_id}/mark-served")
-def mark_order_as_served(order_id: int):
+def mark_order_as_served(order_id: int, db: Session = Depends(get_db)):
     """Mark an order as served and release associated resources"""
-    order = next((o for o in sample_orders if o.id == order_id), None)
-    if not order:
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
     
-    # Find the corresponding kitchen order
+    # Convert to response format for table management
+    response_order = order_model_to_response(db_order)
+    
+    # Find the corresponding kitchen order (still using in-memory for kitchen orders)
     kitchen_order = next((ko for ko in sample_kitchen_orders if ko.order_id == order_id), None)
     if kitchen_order:
         # Update the kitchen order status to served
@@ -252,9 +326,9 @@ def mark_order_as_served(order_id: int):
         kitchen_order.updated_at = datetime.now()
     
     # If it's a dine-in order, release the table
-    if order.order_type == "dine-in":
-        if order.table_id:
-            table = next((t for t in sample_tables if t.id == order.table_id), None)
+    if response_order.order_type == "dine-in":
+        if response_order.table_id:
+            table = next((t for t in sample_tables if t.id == response_order.table_id), None)
             if table:
                 table.is_occupied = False
                 table.current_order_id = None

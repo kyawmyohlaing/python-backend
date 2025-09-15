@@ -3,6 +3,7 @@ from database import Base
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+import json
 
 class Invoice(Base):
     __tablename__ = "invoices"
@@ -62,3 +63,33 @@ class InvoiceResponse(InvoiceBase):
 
     class Config:
         from_attributes = True
+    
+    @classmethod
+    def from_orm(cls, obj):
+        # Convert invoice_data (JSON string) to invoice_items (List[InvoiceItem])
+        invoice_items = []
+        if hasattr(obj, 'invoice_data') and obj.invoice_data:
+            try:
+                items_data = json.loads(obj.invoice_data)
+                invoice_items = [InvoiceItem(**item) for item in items_data]
+            except (json.JSONDecodeError, TypeError):
+                # If there's an error parsing JSON, default to empty list
+                invoice_items = []
+        
+        # Create the response object with all required fields
+        return cls(
+            id=obj.id,
+            invoice_number=obj.invoice_number,
+            order_id=obj.order_id,
+            customer_name=obj.customer_name,
+            customer_phone=obj.customer_phone,
+            customer_address=obj.customer_address,
+            order_type=obj.order_type,
+            table_number=obj.table_number,
+            subtotal=obj.subtotal,
+            tax=obj.tax,
+            total=obj.total,
+            invoice_items=invoice_items,
+            created_at=obj.created_at,
+            updated_at=obj.updated_at
+        )

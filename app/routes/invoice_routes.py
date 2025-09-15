@@ -2,12 +2,50 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from database import get_db
 from models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, InvoiceResponse, InvoiceItem
-from models.order import Order
+from models.order import Order  # Import database Order model
+# Remove import of sample_orders since we're using database now
 
 router = APIRouter(prefix="/api/invoices", tags=["Invoices"])
+
+# Helper function to convert Order model to OrderResponse
+def order_model_to_response(order: Order) -> "OrderResponse":
+    """Convert Order database model to OrderResponse Pydantic model"""
+    from models.order import OrderResponse, OrderItem  # Import here to avoid circular imports
+    
+    # Parse order_data and modifiers from JSON strings
+    order_items = json.loads(order.order_data) if order.order_data else []
+    modifiers = json.loads(order.modifiers) if order.modifiers else None
+    assigned_seats = json.loads(order.assigned_seats) if order.assigned_seats else None
+    
+    # Convert order items to OrderItem objects
+    order_item_objects = [
+        OrderItem(
+            name=item.get("name", ""),
+            price=item.get("price", 0.0),
+            category=item.get("category", ""),
+            modifiers=item.get("modifiers", [])
+        ) for item in order_items
+    ]
+    
+    return OrderResponse(
+        id=order.id,
+        order=order_item_objects,
+        total=order.total,
+        timestamp=order.timestamp,
+        table_id=order.table_id,
+        customer_count=order.customer_count,
+        special_requests=order.special_requests,
+        assigned_seats=assigned_seats,
+        order_type=order.order_type,
+        table_number=order.table_number,
+        customer_name=order.customer_name,
+        customer_phone=order.customer_phone,
+        delivery_address=order.delivery_address,
+        modifiers=modifiers
+    )
 
 def generate_invoice_number(db: Session) -> str:
     """Generate a unique invoice number"""
@@ -28,7 +66,7 @@ def generate_invoice_number(db: Session) -> str:
 def get_invoices(db: Session = Depends(get_db)):
     """Get all invoices"""
     invoices = db.query(Invoice).all()
-    return invoices
+    return [InvoiceResponse.from_orm(invoice) for invoice in invoices]
 
 @router.get("/{invoice_id}", response_model=InvoiceResponse)
 def get_invoice(invoice_id: int, db: Session = Depends(get_db)):
@@ -36,12 +74,12 @@ def get_invoice(invoice_id: int, db: Session = Depends(get_db)):
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    return invoice
+    return InvoiceResponse.from_orm(invoice)
 
 @router.post("/", response_model=InvoiceResponse)
 def create_invoice(invoice: InvoiceCreate, db: Session = Depends(get_db)):
     """Create a new invoice from an order"""
-    # Check if order exists
+    # Check if order exists in database
     order = db.query(Order).filter(Order.id == invoice.order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -73,7 +111,7 @@ def create_invoice(invoice: InvoiceCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_invoice)
     
-    return db_invoice
+    return InvoiceResponse.from_orm(db_invoice)
 
 @router.put("/{invoice_id}", response_model=InvoiceResponse)
 def update_invoice(invoice_id: int, invoice_update: InvoiceUpdate, db: Session = Depends(get_db)):
@@ -104,12 +142,12 @@ def update_invoice(invoice_id: int, invoice_update: InvoiceUpdate, db: Session =
     if invoice_update.invoice_items is not None:
         db_invoice.invoice_data = json.dumps([item.dict() for item in invoice_update.invoice_items])
     
-    db_invoice.updated_at = datetime.utcnow()
+    db_invoice.updated_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(db_invoice)
     
-    return db_invoice
+    return InvoiceResponse.from_orm(db_invoice)
 
 @router.delete("/{invoice_id}")
 def delete_invoice(invoice_id: int, db: Session = Depends(get_db)):
@@ -129,4 +167,4 @@ def get_invoice_by_order(order_id: int, db: Session = Depends(get_db)):
     invoice = db.query(Invoice).filter(Invoice.order_id == order_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found for this order")
-    return invoice
+    return InvoiceResponse.from_orm(invoice)

@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 # Since we're in the container and files are directly in /app, we import directly
+
+# Import models first to ensure they are registered with the Base
+from models import invoice, order, menu, kitchen, table, user
 from routes import user_router, menu_router, order_router, kitchen_router, table_router, invoice_router
 from database import Base, engine
 from config import Config

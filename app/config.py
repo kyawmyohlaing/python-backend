@@ -17,7 +17,6 @@ class Config:
     # Primary PostgreSQL database
     # When running in Docker, we need to use the service name 'db' instead of 'localhost'
     # Check if we're running in Docker by checking for the .dockerenv file
-    import os
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb")
     if os.path.exists('/.dockerenv'):
         # We're in Docker, replace localhost with db service name
@@ -44,7 +43,6 @@ class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG: bool = True
     DATABASE_URL: str = os.getenv("DEV_DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb")
-    import os
     if os.path.exists('/.dockerenv'):
         # We're in Docker, replace localhost with db service name
         DATABASE_URL = DATABASE_URL.replace('localhost', 'db')
@@ -53,7 +51,6 @@ class ProductionConfig(Config):
     """Production configuration"""
     DEBUG: bool = False
     DATABASE_URL: str = os.getenv("PROD_DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb_prod")
-    import os
     if os.path.exists('/.dockerenv'):
         # We're in Docker, replace localhost with db service name
         DATABASE_URL = DATABASE_URL.replace('localhost', 'db')
@@ -62,7 +59,6 @@ class TestingConfig(Config):
     """Testing configuration"""
     TESTING: bool = True
     DATABASE_URL: str = os.getenv("TEST_DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb_test")
-    import os
     if os.path.exists('/.dockerenv'):
         # We're in Docker, replace localhost with db service name
         DATABASE_URL = DATABASE_URL.replace('localhost', 'db')
