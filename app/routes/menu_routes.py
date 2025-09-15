@@ -37,6 +37,19 @@ def create_menu_item(menu_item: MenuItemCreate, db: Session = Depends(get_db)):
             detail=f"Error creating menu item: {str(e)}"
         )
 
+# Specific routes must be defined before generic ones like /{item_id}
+@router.get("/categories", response_model=List[str])
+def get_menu_categories(db: Session = Depends(get_db)):
+    """Get all unique menu categories"""
+    categories = db.query(MenuItem.category).distinct().all()
+    return [category[0] for category in categories]
+
+@router.get("/category/{category}", response_model=List[MenuItemResponse])
+def get_menu_items_by_category(category: str, db: Session = Depends(get_db)):
+    """Get menu items by category"""
+    menu_items = db.query(MenuItem).filter(MenuItem.category == category).all()
+    return menu_items
+
 @router.post("/batch", response_model=List[MenuItemResponse])
 def create_menu_items_batch(menu_items: List[MenuItemCreate], db: Session = Depends(get_db)):
     """Create multiple menu items in batch"""
@@ -78,6 +91,7 @@ def create_menu_items_batch(menu_items: List[MenuItemCreate], db: Session = Depe
             detail=f"Error committing batch creation: {str(e)}"
         )
 
+# Generic routes must be defined AFTER specific ones
 @router.get("/{item_id}", response_model=MenuItemResponse)
 def get_menu_item(item_id: int, db: Session = Depends(get_db)):
     """Get a specific menu item by ID"""
@@ -135,15 +149,3 @@ def delete_menu_item(item_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Error deleting menu item: {str(e)}"
         )
-
-@router.get("/category/{category}", response_model=List[MenuItemResponse])
-def get_menu_items_by_category(category: str, db: Session = Depends(get_db)):
-    """Get menu items by category"""
-    menu_items = db.query(MenuItem).filter(MenuItem.category == category).all()
-    return menu_items
-
-@router.get("/categories", response_model=List[str])
-def get_menu_categories(db: Session = Depends(get_db)):
-    """Get all unique menu categories"""
-    categories = db.query(MenuItem.category).distinct().all()
-    return [category[0] for category in categories]
