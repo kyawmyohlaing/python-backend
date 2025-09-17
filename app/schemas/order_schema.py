@@ -15,7 +15,7 @@ class OrderBase(BaseModel):
 
 class OrderCreate(OrderBase):
     assigned_seats: Optional[List[int]] = None
-    order_type: Optional[str] = "dine-in"
+    order_type: Optional[str] = "dine_in"
     table_number: Optional[str] = None
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None

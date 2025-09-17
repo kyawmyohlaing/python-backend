@@ -9,7 +9,7 @@ depends_on = None
 
 def upgrade():
     # Add new columns to support order type functionality
-    op.add_column('orders', sa.Column('order_type', sa.String(length=20), nullable=True, server_default='dine-in'))
+    op.add_column('orders', sa.Column('order_type', sa.String(length=20), nullable=True, server_default='dine_in'))
     op.add_column('orders', sa.Column('table_number', sa.String(length=10), nullable=True))
     op.add_column('orders', sa.Column('customer_name', sa.String(length=100), nullable=True))
     op.add_column('orders', sa.Column('customer_phone', sa.String(length=20), nullable=True))
@@ -18,7 +18,7 @@ def upgrade():
     # Update existing orders with default values
     op.execute("""
         UPDATE orders
-        SET order_type = 'dine-in'
+        SET order_type = 'dine_in'
     """)
     
     # Alter columns to set nullable=False after migration

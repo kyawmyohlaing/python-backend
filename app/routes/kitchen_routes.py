@@ -35,7 +35,7 @@ def kitchen_order_to_detail(kitchen_order: KitchenOrder, db_order: Order) -> Kit
         updated_at=kitchen_order.updated_at,
         order_items=order_item_objects,
         total=float(db_order.total) if db_order.total else 0.0,
-        order_type=str(db_order.order_type) if db_order.order_type else 'dine-in',
+        order_type=str(db_order.order_type) if db_order.order_type else 'dine_in',
         table_number=str(db_order.table_number) if db_order.table_number else None,
         customer_name=str(db_order.customer_name) if db_order.customer_name else None
     )

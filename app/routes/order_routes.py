@@ -251,7 +251,7 @@ def update_order_status(order_id: int, status_update: dict, db: Session = Depend
         kitchen_order.updated_at = datetime.now()
         
         # If the order is marked as served, we might want to release the table
-        if new_status == "served" and response_order.order_type == "dine-in":
+        if new_status == "served" and response_order.order_type == "dine_in":
             # Release the table
             if response_order.table_id:
                 table = db.query(Table).filter(Table.id == response_order.table_id).first()
@@ -313,8 +313,8 @@ def mark_order_as_served(order_id: int, db: Session = Depends(get_db)):
         kitchen_order.status = "served"
         kitchen_order.updated_at = datetime.now()
     
-    # If it's a dine-in order, release the table
-    if response_order.order_type == "dine-in":
+    # If it's a dine_in order, release the table
+    if response_order.order_type == "dine_in":
         if response_order.table_id:
             table = db.query(Table).filter(Table.id == response_order.table_id).first()
             if table:
