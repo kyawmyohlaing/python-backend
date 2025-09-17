@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, Table, Float, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -40,15 +40,27 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
+    # Existing attributes
     table_number = Column(Integer)
     order_type = Column(Enum(OrderType))
     status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     special_requests = Column(String, nullable=True)
-
+    
     # Foreign key to User (the user who created the order)
     created_by = Column(Integer, ForeignKey("users.id"))
+    
+    # New attributes that were missing
+    total = Column(Float)
+    order_data = Column(JSON)
+    table_id = Column(Integer, ForeignKey("tables.id"))
+    customer_count = Column(Integer)
+    assigned_seats = Column(JSON)
+    customer_name = Column(String)
+    customer_phone = Column(String)
+    delivery_address = Column(String)
+    modifiers = Column(JSON)
 
     # Relationships (using string references to avoid circular imports)
     order_items = relationship("OrderItem", back_populates="order", lazy="select")

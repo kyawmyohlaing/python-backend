@@ -7,75 +7,29 @@ This script tests the /register, /login, and /me endpoints.
 import requests
 import json
 
-# Test the health endpoint
-response = requests.get("http://localhost:8088/health")
-print(f"Health check: {response.status_code} - {response.json()}")
-
-# Test getting all tables (should be empty initially)
-response = requests.get("http://localhost:8088/api/tables/")
-print(f"Get tables: {response.status_code} - {response.json()}")
-
-# Test creating a table
-table_data = {
-    "table_number": 1,
-    "capacity": 4
-}
-
-response = requests.post(
-    "http://localhost:8088/api/tables/",
-    headers={"Content-Type": "application/json"},
-    data=json.dumps(table_data)
-)
-
-print(f"Create table: {response.status_code} - {response.json()}")
-
-# Test getting all tables again (should now have one table)
-response = requests.get("http://localhost:8088/api/tables/")
-print(f"Get tables after creation: {response.status_code} - {response.json()}")
-
 # Test creating an order
 order_data = {
     "order": [
-        {"name": "Burger", "price": 8.99, "category": "Main Course"},
-        {"name": "Fries", "price": 3.99, "category": "Sides"},
-        {"name": "Soda", "price": 2.99, "category": "Beverages"}
+        {"name": "Burger", "price": 12.99, "category": "grill"},
+        {"name": "Fries", "price": 4.99, "category": "sides"}
     ],
-    "total": 15.97,
-    "order_type": "dine-in",
-    "table_number": "5",
-    "customer_name": "John Doe"
+    "total": 17.98,
+    "order_type": "dine_in"
 }
 
-# Create order
-response = requests.post("http://localhost:8088/api/orders/", json=order_data)
-print("Create Order Response:")
-print(response.status_code)
-print(json.dumps(response.json(), indent=2))
+response = requests.post("http://localhost:8088/api/orders", json=order_data)
+print("Create order response:", response.status_code)
+print("Response body:", response.json())
 
-# Get kitchen orders
+# Test getting all orders
+response = requests.get("http://localhost:8088/api/orders")
+print("Get orders response:", response.status_code)
+print("Response body:", response.json())
+
+# Test getting kitchen orders
 response = requests.get("http://localhost:8088/api/kitchen/orders")
-print("\nKitchen Orders Response:")
-print(response.status_code)
-print(json.dumps(response.json(), indent=2))
-
-# Test printers endpoint
-response = requests.get("http://localhost:8088/api/kitchen/printers")
-print("\nPrinters Response:")
-print(response.status_code)
-print(json.dumps(response.json(), indent=2))
-
-# Test printing KOT for the last order (the one we just created)
-if response.status_code == 200:
-    response = requests.get("http://localhost:8088/api/kitchen/orders")
-    if response.status_code == 200:
-        kitchen_orders = response.json()
-        if len(kitchen_orders) > 0:
-            # Get the last order (the one we just created)
-            order_id = kitchen_orders[-1]["order_id"]
-            response = requests.post(f"http://localhost:8088/api/kitchen/orders/{order_id}/print-kot")
-            print(f"\nPrint KOT Response for order {order_id}:")
-            print(response.status_code)
-            print(json.dumps(response.json(), indent=2))
+print("Get kitchen orders response:", response.status_code)
+print("Response body:", response.json())
 
 def test_register():
     """Test user registration"""

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from typing import List
@@ -31,6 +31,7 @@ class KitchenOrder(Base):
     __tablename__ = "kitchen_orders"
 
     id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"))
     table_number = Column(Integer)
     order_type = Column(String)  # dine_in, takeaway, delivery
     status = Column(String, default=KitchenOrderStatus.PENDING.value)

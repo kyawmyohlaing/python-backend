@@ -54,7 +54,7 @@ def order_model_to_response(order: Order) -> OrderResponse:
         id=order.id,
         order=order_item_objects,
         total=order.total,
-        timestamp=order.timestamp,
+        timestamp=order.created_at,
         table_id=order.table_id,
         customer_count=order.customer_count,
         special_requests=order.special_requests,
