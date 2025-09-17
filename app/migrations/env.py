@@ -38,9 +38,22 @@ if parent_dir not in sys.path:
 print(f"Updated Python path: {sys.path}")
 
 # Import the database and models
-# Since we're in the container and files are directly in /app, we import directly
-from database import Base
-from models import user
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from database (Docker container)
+    from database import Base
+    from models import user
+except ImportError:
+    try:
+        # Try importing from app.module (local development)
+        from app.database import Base
+        from app.models import user
+    except ImportError:
+        # Try one more approach for local development
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from app.database import Base
+        from app.models import user
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -62,7 +75,30 @@ def run_migrations_offline():
 
     """
     # Import the Config class and get database URL properly
-    from config import Config
+    # Handle imports for both local development and Docker container environments
+    try:
+        # Try importing from config directly (Docker container)
+        from config import Config
+    except ImportError:
+        try:
+            # Try importing from app.config (local development)
+            from app.config import Config
+        except ImportError:
+            # Fallback to environment variable
+            import os
+            database_url = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/mydb')
+            url = database_url
+            context.configure(
+                url=url,
+                target_metadata=target_metadata,
+                literal_binds=True,
+                dialect_opts={"paramstyle": "named"},
+            )
+
+            with context.begin_transaction():
+                context.run_migrations()
+            return
+    
     app_config = Config()
     database_url = app_config.DATABASE_URL or "postgresql://postgres:password@localhost:5432/mydb"
     
@@ -86,8 +122,39 @@ def run_migrations_online():
 
     """
     # Import the Config class and get database URL properly
-    # Since we're in the container and files are directly in /app, we import directly
-    from config import Config
+    # Handle imports for both local development and Docker container environments
+    try:
+        # Try importing from config directly (Docker container)
+        from config import Config
+    except ImportError:
+        try:
+            # Try importing from app.config (local development)
+            from app.config import Config
+        except ImportError:
+            # Fallback to environment variable
+            import os
+            database_url = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/mydb')
+            config.set_main_option('sqlalchemy.url', database_url)
+            
+            # Get the configuration section, providing an empty dict as fallback
+            configuration = config.get_section(config.config_ini_section) or {}
+            configuration["sqlalchemy.url"] = database_url
+            
+            connectable = engine_from_config(
+                configuration,
+                prefix="sqlalchemy.",
+                poolclass=pool.NullPool,
+            )
+
+            with connectable.connect() as connection:
+                context.configure(
+                    connection=connection, target_metadata=target_metadata
+                )
+
+                with context.begin_transaction():
+                    context.run_migrations()
+            return
+    
     app_config = Config()
     database_url = app_config.DATABASE_URL or "postgresql://postgres:password@localhost:5432/mydb"
     config.set_main_option('sqlalchemy.url', database_url)

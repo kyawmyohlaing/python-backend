@@ -1,52 +1,42 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
-from database import Base
-from pydantic import BaseModel
-from typing import List, Optional
+from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy.orm import relationship
 from datetime import datetime
-from .menu import MenuItemBase
+from typing import List
+import enum
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.database (local development)
+    from app.database import Base
+except ImportError:
+    # Try importing from database directly (Docker container)
+    from database import Base
+
+# Import the schema for MenuItemBase (it's a Pydantic model, not a SQLAlchemy model)
+try:
+    # Try importing from app.schemas (local development)
+    from app.schemas.menu_schema import MenuItemBase
+except ImportError:
+    # Try importing from schemas directly (Docker container)
+    from schemas.menu_schema import MenuItemBase
 
 
-class KitchenOrderDetail(BaseModel):
-    id: int
-    order_id: int
-    status: str
-    created_at: datetime
-    updated_at: datetime
-    order_items: List[MenuItemBase]
-    total: float
-    # New order type information fields
-    order_type: Optional[str] = "dine-in"  # dine-in, takeaway, delivery
-    table_number: Optional[str] = None
-    customer_name: Optional[str] = None
-
-    class Config:
-        from_attributes = True
+class KitchenOrderStatus(str, enum.Enum):
+    PENDING = "pending"
+    PREPARING = "preparing"
+    READY = "ready"
 
 
 class KitchenOrder(Base):
     __tablename__ = "kitchen_orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    order_id = Column(Integer, ForeignKey("orders.id"))
-    status = Column(String, default="pending")  # pending, preparing, ready, served
+    table_number = Column(Integer)
+    order_type = Column(String)  # dine_in, takeaway, delivery
+    status = Column(String, default=KitchenOrderStatus.PENDING.value)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-# Pydantic models for API validation
-class KitchenOrderBase(BaseModel):
-    order_id: int
-    status: str = "pending"
-
-class KitchenOrderCreate(KitchenOrderBase):
-    pass
-
-class KitchenOrderUpdate(BaseModel):
-    status: str
-
-class KitchenOrderResponse(KitchenOrderBase):
-    id: int
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
+    
+    # Store order items as JSON (since they're Pydantic models, not SQLAlchemy models)
+    # This is a simplified approach for demonstration
+    # In a real application, you might want to create a separate table for order items

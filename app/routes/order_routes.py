@@ -3,13 +3,32 @@ from sqlalchemy.orm import Session
 from typing import List
 import json
 from datetime import datetime
-from database import get_db
-from models.order import Order, OrderCreate, OrderUpdate, OrderResponse, OrderItem
-from models.menu import MenuItem
-from models.kitchen import KitchenOrderCreate, KitchenOrderResponse
-from models.table import TableResponse
-from data.shared_data import sample_kitchen_orders, sample_tables
-from services.kot_service import kot_service
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.module (local development)
+    from app.database import get_db
+    from app.models.order import Order
+    from app.models.menu import MenuItem
+    from app.models.kitchen import KitchenOrder
+    from app.models.table import Table
+    from app.data.shared_data import sample_tables
+    from app.services.kot_service_simple import kot_service
+    from app.schemas.order_schema import OrderCreate, OrderUpdate, OrderResponse, OrderItem
+    from app.schemas.kitchen_schema import KitchenOrderCreate, KitchenOrderResponse
+    from app.schemas.table_schema import TableResponse
+except ImportError:
+    # Try importing directly (Docker container)
+    from database import get_db
+    from models.order import Order
+    from models.menu import MenuItem
+    from models.kitchen import KitchenOrder
+    from models.table import Table
+    from data.shared_data import sample_tables
+    from services.kot_service_simple import kot_service
+    from schemas.order_schema import OrderCreate, OrderUpdate, OrderResponse, OrderItem
+    from schemas.kitchen_schema import KitchenOrderCreate, KitchenOrderResponse
+    from schemas.table_schema import TableResponse
 
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
@@ -100,15 +119,14 @@ def create_order(order: OrderCreate, db: Session = Depends(get_db)):
         # Convert to response format
         response_order = order_model_to_response(db_order)
         
-        # Automatically add the order to the kitchen (still using in-memory for kitchen orders)
-        kitchen_order = KitchenOrderResponse(
-            id=len(sample_kitchen_orders) + 1,
+        # Automatically add the order to the kitchen (using database now)
+        kitchen_order = KitchenOrder(
             order_id=db_order.id,
-            status="pending",
-            created_at=datetime.now(),
-            updated_at=datetime.now()
+            status="pending"
         )
-        sample_kitchen_orders.append(kitchen_order)
+        db.add(kitchen_order)
+        db.commit()
+        db.refresh(kitchen_order)
         
         # Automatically print KOT for the new order
         try:
@@ -116,40 +134,6 @@ def create_order(order: OrderCreate, db: Session = Depends(get_db)):
         except Exception as e:
             # Log the error but don't fail the order creation
             print(f"Warning: Failed to print KOT for order {db_order.id}: {str(e)}")
-        
-        # Handle table assignment based on order type
-        if response_order.order_type == "dine-in":
-            # For dine-in orders, we need a table
-            # First check if table_id is provided
-            if response_order.table_id:
-                table = next((t for t in sample_tables if t.id == response_order.table_id), None)
-                if table:
-                    table.is_occupied = True
-                    table.current_order_id = db_order.id
-                    table.status = "occupied"
-                    
-                    # Assign seats if provided and table.seats is not None
-                    if response_order.assigned_seats and table.seats:
-                        for seat_num in response_order.assigned_seats:
-                            if seat_num <= len(table.seats):
-                                table.seats[seat_num-1]["status"] = "occupied"
-                                table.seats[seat_num-1]["customer_name"] = response_order.customer_name
-            # If no table_id but table_number is provided, find table by number
-            elif response_order.table_number:
-                table = next((t for t in sample_tables if str(t.table_number) == str(response_order.table_number)), None)
-                if table:
-                    table.is_occupied = True
-                    table.current_order_id = db_order.id
-                    table.status = "occupied"
-                    
-                    # Assign seats if provided and table.seats is not None
-                    if response_order.assigned_seats and table.seats:
-                        for seat_num in response_order.assigned_seats:
-                            if seat_num <= len(table.seats):
-                                table.seats[seat_num-1]["status"] = "occupied"
-                                table.seats[seat_num-1]["customer_name"] = response_order.customer_name
-                    # Also set the table_id on the order for consistency
-                    response_order.table_id = table.id
         
         return response_order
     except Exception as e:
@@ -185,18 +169,18 @@ def update_order(order_id: int, order_update: OrderUpdate, db: Session = Depends
         # If table is being changed, update both old and new table statuses
         if db_order.table_id and db_order.table_id != order_update.table_id:
             # Release old table
-            old_table = next((t for t in sample_tables if t.id == db_order.table_id), None)
+            old_table = db.query(Table).filter(Table.id == db_order.table_id).first()
             if old_table:
                 old_table.is_occupied = False
                 old_table.current_order_id = None
                 old_table.status = "available"
                 # Release all seats
-                for seat in old_table.seats:
-                    seat["status"] = "available"
-                    seat["customer_name"] = None
+                for i, seat in enumerate(old_table.seats):
+                    old_table.seats[i]["status"] = "available"
+                    old_table.seats[i]["customer_name"] = None
         
         # Assign new table
-        new_table = next((t for t in sample_tables if t.id == order_update.table_id), None)
+        new_table = db.query(Table).filter(Table.id == order_update.table_id).first()
         if new_table:
             new_table.is_occupied = True
             new_table.current_order_id = order_id
@@ -253,8 +237,8 @@ def update_order_status(order_id: int, status_update: dict, db: Session = Depend
     # Convert to response format for table management
     response_order = order_model_to_response(db_order)
     
-    # Find the corresponding kitchen order (still using in-memory for kitchen orders)
-    kitchen_order = next((ko for ko in sample_kitchen_orders if ko.order_id == order_id), None)
+    # Find the corresponding kitchen order (now using database)
+    kitchen_order = db.query(KitchenOrder).filter(KitchenOrder.order_id == order_id).first()
     if kitchen_order:
         # Validate status - only allow valid statuses
         valid_statuses = ["pending", "preparing", "ready", "served"]
@@ -270,15 +254,19 @@ def update_order_status(order_id: int, status_update: dict, db: Session = Depend
         if new_status == "served" and response_order.order_type == "dine-in":
             # Release the table
             if response_order.table_id:
-                table = next((t for t in sample_tables if t.id == response_order.table_id), None)
+                table = db.query(Table).filter(Table.id == response_order.table_id).first()
                 if table:
                     table.is_occupied = False
                     table.current_order_id = None
                     table.status = "available"
                     # Release all seats
-                    for seat in table.seats:
-                        seat["status"] = "available"
-                        seat["customer_name"] = None
+                    for i, seat in enumerate(table.seats):
+                        table.seats[i]["status"] = "available"
+                        table.seats[i]["customer_name"] = None
+    
+    db.commit()
+    if kitchen_order:
+        db.refresh(kitchen_order)
     
     return order_model_to_response(db_order)
 
@@ -294,15 +282,15 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
     
     # If order has an assigned table, release it
     if response_order.table_id:
-        table = next((t for t in sample_tables if t.id == response_order.table_id), None)
+        table = db.query(Table).filter(Table.id == response_order.table_id).first()
         if table:
             table.is_occupied = False
             table.current_order_id = None
             table.status = "available"
             # Release all seats
-            for seat in table.seats:
-                seat["status"] = "available"
-                seat["customer_name"] = None
+            for i, seat in enumerate(table.seats):
+                table.seats[i]["status"] = "available"
+                table.seats[i]["customer_name"] = None
     
     db.delete(db_order)
     db.commit()
@@ -318,8 +306,8 @@ def mark_order_as_served(order_id: int, db: Session = Depends(get_db)):
     # Convert to response format for table management
     response_order = order_model_to_response(db_order)
     
-    # Find the corresponding kitchen order (still using in-memory for kitchen orders)
-    kitchen_order = next((ko for ko in sample_kitchen_orders if ko.order_id == order_id), None)
+    # Find the corresponding kitchen order (now using database)
+    kitchen_order = db.query(KitchenOrder).filter(KitchenOrder.order_id == order_id).first()
     if kitchen_order:
         # Update the kitchen order status to served
         kitchen_order.status = "served"
@@ -328,14 +316,18 @@ def mark_order_as_served(order_id: int, db: Session = Depends(get_db)):
     # If it's a dine-in order, release the table
     if response_order.order_type == "dine-in":
         if response_order.table_id:
-            table = next((t for t in sample_tables if t.id == response_order.table_id), None)
+            table = db.query(Table).filter(Table.id == response_order.table_id).first()
             if table:
                 table.is_occupied = False
                 table.current_order_id = None
                 table.status = "available"
                 # Release all seats
-                for seat in table.seats:
-                    seat["status"] = "available"
-                    seat["customer_name"] = None
+                for i, seat in enumerate(table.seats):
+                    table.seats[i]["status"] = "available"
+                    table.seats[i]["customer_name"] = None
+    
+    db.commit()
+    if kitchen_order:
+        db.refresh(kitchen_order)
     
     return {"message": "Order marked as served", "order_id": order_id}

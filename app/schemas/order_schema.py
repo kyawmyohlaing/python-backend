@@ -4,7 +4,7 @@ from datetime import datetime
 from .menu_schema import MenuItemBase
 
 class OrderItem(MenuItemBase):
-    pass
+    modifiers: Optional[List[str]] = []
 
 class OrderBase(BaseModel):
     order: List[OrderItem]
@@ -14,7 +14,13 @@ class OrderBase(BaseModel):
     special_requests: Optional[str] = None
 
 class OrderCreate(OrderBase):
-    pass
+    assigned_seats: Optional[List[int]] = None
+    order_type: Optional[str] = "dine-in"
+    table_number: Optional[str] = None
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    delivery_address: Optional[str] = None
+    modifiers: Optional[dict] = None
 
 class OrderUpdate(BaseModel):
     table_id: Optional[int] = None
@@ -22,6 +28,13 @@ class OrderUpdate(BaseModel):
     special_requests: Optional[str] = None
     order: Optional[List[OrderItem]] = None
     total: Optional[float] = None
+    assigned_seats: Optional[List[int]] = None
+    order_type: Optional[str] = None
+    table_number: Optional[str] = None
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    delivery_address: Optional[str] = None
+    modifiers: Optional[dict] = None
 
 class OrderResponse(OrderBase):
     id: int

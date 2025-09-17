@@ -2,8 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List
-from database import get_db
-from models.menu import MenuItem, MenuItemCreate, MenuItemResponse
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.module (local development)
+    from app.database import get_db
+    from app.models.menu import MenuItem
+    from app.schemas.menu_schema import MenuItemCreate, MenuItemResponse
+except ImportError:
+    # Try importing directly (Docker container)
+    from database import get_db
+    from models.menu import MenuItem
+    from schemas.menu_schema import MenuItemCreate, MenuItemResponse
 
 router = APIRouter(prefix="/api/menu", tags=["Menu"])
 

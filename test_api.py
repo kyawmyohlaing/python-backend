@@ -7,6 +7,32 @@ This script tests the /register, /login, and /me endpoints.
 import requests
 import json
 
+# Test the health endpoint
+response = requests.get("http://localhost:8088/health")
+print(f"Health check: {response.status_code} - {response.json()}")
+
+# Test getting all tables (should be empty initially)
+response = requests.get("http://localhost:8088/api/tables/")
+print(f"Get tables: {response.status_code} - {response.json()}")
+
+# Test creating a table
+table_data = {
+    "table_number": 1,
+    "capacity": 4
+}
+
+response = requests.post(
+    "http://localhost:8088/api/tables/",
+    headers={"Content-Type": "application/json"},
+    data=json.dumps(table_data)
+)
+
+print(f"Create table: {response.status_code} - {response.json()}")
+
+# Test getting all tables again (should now have one table)
+response = requests.get("http://localhost:8088/api/tables/")
+print(f"Get tables after creation: {response.status_code} - {response.json()}")
+
 # Test creating an order
 order_data = {
     "order": [

@@ -1,9 +1,16 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey
-from database import Base
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import json
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.database (local development)
+    from app.database import Base
+except ImportError:
+    # Try importing from database directly (Docker container)
+    from database import Base
 
 class Invoice(Base):
     __tablename__ = "invoices"

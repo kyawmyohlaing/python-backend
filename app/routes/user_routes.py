@@ -3,12 +3,21 @@ from sqlalchemy.orm import Session
 from typing import List
 from fastapi.security import OAuth2PasswordBearer
 
-# Since we're in the container and files are directly in /app, we import directly
-from database import get_db
-from schemas.user_schema import UserCreate, UserResponse, UserLogin, Token
-from services.user_service import UserService
-from models.user import User  # Import the User model
-from security import create_access_token, decode_access_token
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.module (local development)
+    from app.database import get_db
+    from app.schemas.user_schema import UserCreate, UserResponse, UserLogin, Token
+    from app.services.user_service import UserService
+    from app.models.user import User  # Import the User model
+    from app.security import create_access_token, decode_access_token
+except ImportError:
+    # Try importing directly (Docker container)
+    from database import get_db
+    from schemas.user_schema import UserCreate, UserResponse, UserLogin, Token
+    from services.user_service import UserService
+    from models.user import User  # Import the User model
+    from security import create_access_token, decode_access_token
 
 router = APIRouter(prefix="/users", tags=["Users"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")

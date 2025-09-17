@@ -29,6 +29,62 @@ A production-ready, scalable FastAPI backend template designed for building secu
 2. Copy `.env.example` to `.env` and configure your environment variables
 3. Run `make dev` for development or `make prod` for production
 
+## Database Setup
+
+The application uses PostgreSQL as its primary database. By default, it's configured to work with the Docker setup provided, but you can also configure it to work with an external PostgreSQL database.
+
+### Default Docker Setup
+
+The default configuration uses:
+- Username: `postgres`
+- Password: `password`
+- Database: `mydb`
+- Host: `db` (Docker service name)
+- Port: `5432`
+
+### Custom Database Configuration
+
+If you need to use different credentials or an external database:
+
+1. Update the `DATABASE_URL` in your `.env` file:
+   ```env
+   DATABASE_URL=postgresql://your_username:your_password@your_host:5432/your_database
+   ```
+
+2. If using Docker with custom credentials, also update `docker-compose.yml`:
+   ```yaml
+   services:
+     db:
+       environment:
+         POSTGRES_USER: your_username
+         POSTGRES_PASSWORD: your_password
+         POSTGRES_DB: your_database
+   ```
+
+3. Test your database connection:
+   ```bash
+   python test_db_connection.py
+   ```
+
+### Troubleshooting Database Issues
+
+If you encounter database connection issues:
+
+1. Run the connection test script:
+   ```bash
+   python test_db_connection.py
+   ```
+
+2. Check the detailed troubleshooting guides:
+   - [Database Troubleshooting](DATABASE_TROUBLESHOOTING.md)
+   - [General Troubleshooting](TROUBLESHOOTING.md)
+
+3. If you've changed credentials, reset the database volume:
+   ```bash
+   docker-compose down -v
+   make dev
+   ```
+
 ## API Endpoints
 
 - `/api/users/` - User management

@@ -58,7 +58,7 @@ The database configuration is handled in the following files:
 ### 1. Connection Refused Errors
 
 **Problem**: 
-```
+```bash
 sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "localhost" (127.0.0.1), port 5432 failed: Connection refused
 ```
 
@@ -71,7 +71,7 @@ sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to serve
 ### 2. Authentication Failed Errors
 
 **Problem**: 
-```
+```bash
 sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL: password authentication failed for user "postgres"
 ```
 
@@ -79,11 +79,67 @@ sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to serve
 - Verify the PostgreSQL username and password in the `.env` file
 - Check the PostgreSQL container logs to ensure it started correctly
 - Ensure the PostgreSQL user has the correct permissions
+- If you've changed credentials, you may need to reset the database volume:
+  ```bash
+  # Stop containers and remove volumes
+  docker-compose down -v
+  
+  # Start with fresh database
+  make dev
+  ```
 
-### 3. Module Import Errors
+### 3. Using Custom PostgreSQL Credentials
+
+If you want to use different PostgreSQL credentials than the default ones:
+
+1. **Update docker-compose.yml**:
+   ```yaml
+   services:
+     db:
+       image: postgres:16
+       environment:
+         POSTGRES_USER: your_username
+         POSTGRES_PASSWORD: your_password
+         POSTGRES_DB: your_database
+   ```
+
+2. **Update .env file**:
+   ```env
+   DATABASE_URL=postgresql://your_username:your_password@db:5432/your_database
+   ```
+
+3. **Reset the database volume** (if changing existing credentials):
+   ```bash
+   docker-compose down -v
+   make dev
+   ```
+
+### 4. Connecting to an External PostgreSQL Database
+
+If you want to use an external PostgreSQL database instead of the one provided in Docker:
+
+1. **Update .env file**:
+   ```env
+   DATABASE_URL=postgresql://your_username:your_password@your_host:5432/your_database
+   ```
+
+2. **Remove the db service from docker-compose.yml**:
+   ```yaml
+   services:
+     web:
+       build: .
+       # Remove depends_on: - db
+       environment:
+         DATABASE_URL: ${DATABASE_URL}
+         # ... other environment variables
+   ```
+
+3. **Ensure your external PostgreSQL database is accessible** and has the required database and user created.
+
+### 5. Module Import Errors
 
 **Problem**: 
-```
+```bash
 ModuleNotFoundError: No module named 'app'
 ```
 
@@ -92,7 +148,7 @@ ModuleNotFoundError: No module named 'app'
 - When running scripts inside Docker containers, make sure the working directory is set correctly
 - Check that the application files are correctly copied to the container
 
-### 4. Database Tables Not Created
+### 6. Database Tables Not Created
 
 **Problem**: 
 - API endpoints return empty results

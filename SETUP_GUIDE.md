@@ -166,6 +166,18 @@ docker-compose exec web alembic -c app/migrations/alembic.ini revision --autogen
 ### Seeding Data
 To add more seed data, create new migration files in `app/migrations/versions/` following the pattern in `0002_seed_user.py`.
 
+### Database Connection Testing
+
+To verify your database connection is properly configured, run the test script:
+```bash
+python test_db_connection.py
+```
+
+This script will:
+- Check if your `.env` file is properly configured
+- Test the database connection using your configured credentials
+- Provide specific troubleshooting advice if the connection fails
+
 ## 🧪 Running Tests
 
 ### Run All Tests
@@ -226,6 +238,7 @@ This script generates a cryptographically secure random key suitable for use as 
 2. **Database connection errors:**
    - Ensure the database service is running
    - Check the `DATABASE_URL` in your `.env` file
+   - Run `python test_db_connection.py` for detailed diagnostics
 
 3. **Migration errors:**
    - Check the migration files in `app/migrations/versions/`

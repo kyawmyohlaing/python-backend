@@ -1,8 +1,14 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, JSON
-from database import Base
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.database (local development)
+    from app.database import Base
+except ImportError:
+    # Try importing from database directly (Docker container)
+    from database import Base
 
 class Table(Base):
     __tablename__ = "tables"
@@ -14,7 +20,7 @@ class Table(Base):
     is_occupied = Column(Boolean, default=False)
     current_order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
     status = Column(String, default="available")  # available, occupied, reserved, cleaning
-    seats = Column(JSON, default=[])  # Track individual seats and their status
+    seats = Column(JSON, default=list)  # Track individual seats and their status
 
 # Pydantic models for API validation
 class TableBase(BaseModel):
@@ -42,7 +48,14 @@ class TableResponse(TableBase):
     class Config:
         from_attributes = True
 
-class TableWithOrderDetails(TableResponse):
+class TableWithOrderDetails(BaseModel):
+    id: int
+    table_number: int
+    capacity: int
+    is_occupied: bool
+    current_order_id: Optional[int] = None
+    status: str
+    seats: Optional[List[dict]] = None
     order_details: Optional[dict] = None
 
     class Config:

@@ -1,8 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import SQLAlchemyError   
-# Since we're in the container and files are directly in /app, we import directly
-from config import Config
 import logging
 
 # Set up logging
@@ -10,8 +8,22 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Get database URL from configuration
-config = Config()
-DATABASE_URL = config.DATABASE_URL
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.config (local development)
+    from app.config import Config
+    config = Config()
+    DATABASE_URL = config.DATABASE_URL
+except ImportError:
+    try:
+        # Try importing from config directly (Docker container)
+        from config import Config
+        config = Config()
+        DATABASE_URL = config.DATABASE_URL
+    except ImportError:
+        # Fallback to environment variable
+        import os
+        DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/mydb')
 
 # When running in Docker, we need to use the service name 'db' instead of 'localhost'
 # Check if we're running in Docker by checking for the .dockerenv file

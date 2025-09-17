@@ -69,7 +69,52 @@ This guide helps you resolve common issues you might encounter when using the Fa
    DATABASE_URL=postgresql://user:password@db:5432/database
    ```
 
-### 2. Migration Errors
+### 2. Authentication Failed Errors
+
+**Problem:** Password authentication fails for PostgreSQL user:
+```
+FATAL: password authentication failed for user "postgres"
+```
+
+**Solutions:**
+1. **Check Environment Variables**: Verify that the PostgreSQL credentials in your `.env` file match what's configured in `docker-compose.yml`:
+   ```env
+   # In .env file
+   POSTGRES_USER=postgres
+   POSTGRES_PASSWORD=password
+   POSTGRES_DB=mydb
+   DATABASE_URL=postgresql://postgres:password@db:5432/mydb
+   ```
+
+2. **Reset Database Volume**: If you've changed credentials, you may need to reset the database volume:
+   ```bash
+   # Stop containers and remove volumes
+   docker-compose down -v
+   
+   # Start with fresh database
+   make dev
+   ```
+
+3. **Manually Set PostgreSQL Password**: Connect to the PostgreSQL container and reset the password:
+   ```bash
+   # Connect to the database container
+   docker-compose exec db psql -U postgres
+   
+   # In the PostgreSQL shell, change the password
+   \password postgres
+   # Enter "password" when prompted
+   
+   # Exit PostgreSQL
+   \q
+   ```
+
+4. **Use Different Credentials**: If you prefer to use different credentials:
+   - Update `docker-compose.yml` with your preferred username/password
+   - Update the `.env` file to match
+   - Run `docker-compose down -v` to remove the old volume
+   - Run `make dev` to start with new credentials
+
+### 3. Migration Errors
 
 **Problem:** Alembic migrations fail to apply.
 
@@ -92,7 +137,7 @@ This guide helps you resolve common issues you might encounter when using the Fa
    make dev
    ```
 
-### 3. Seeding Data Issues
+### 4. Seeding Data Issues
 
 **Problem:** Example user is not created or accessible.
 

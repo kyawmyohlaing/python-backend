@@ -1,7 +1,16 @@
 from typing import List
-from models.order import OrderResponse
-from models.kitchen import KitchenOrderResponse
-from models.table import TableResponse
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.module (local development)
+    from app.schemas.order_schema import OrderResponse
+    from app.schemas.kitchen_schema import KitchenOrderResponse
+    from app.schemas.table_schema import TableResponse
+except ImportError:
+    # Try importing directly (Docker container)
+    from schemas.order_schema import OrderResponse
+    from schemas.kitchen_schema import KitchenOrderResponse
+    from schemas.table_schema import TableResponse
 
 # Shared data storage - in a real application, this would be replaced with a database
 sample_orders: List[OrderResponse] = []
@@ -13,8 +22,7 @@ sample_tables: List[TableResponse] = [
         capacity=4,
         is_occupied=False,
         current_order_id=None,
-        status="available",
-        seats=[{"seat_number": i+1, "status": "available", "customer_name": None} for i in range(4)]
+        status="available"
     ),
     TableResponse(
         id=2,
@@ -22,8 +30,7 @@ sample_tables: List[TableResponse] = [
         capacity=2,
         is_occupied=False,
         current_order_id=None,
-        status="available",
-        seats=[{"seat_number": i+1, "status": "available", "customer_name": None} for i in range(2)]
+        status="available"
     ),
     TableResponse(
         id=3,
@@ -31,8 +38,7 @@ sample_tables: List[TableResponse] = [
         capacity=6,
         is_occupied=False,
         current_order_id=None,
-        status="available",
-        seats=[{"seat_number": i+1, "status": "available", "customer_name": None} for i in range(6)]
+        status="available"
     ),
     TableResponse(
         id=4,
@@ -40,7 +46,6 @@ sample_tables: List[TableResponse] = [
         capacity=4,
         is_occupied=False,
         current_order_id=None,
-        status="available",
-        seats=[{"seat_number": i+1, "status": "available", "customer_name": None} for i in range(4)]
+        status="available"
     )
 ]

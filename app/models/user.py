@@ -1,46 +1,34 @@
-from sqlalchemy import Column, Integer, String
-# Since we're in the container and files are directly in /app, we import directly
-from database import Base
-from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, Enum
+from sqlalchemy.orm import relationship
+import enum
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.database (local development)
+    from app.database import Base
+except ImportError:
+    # Try importing from database directly (Docker container)
+    from database import Base
+
+
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    WAITER = "waiter"
+    KITCHEN = "kitchen"
+    BAR = "bar"
+
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
+    username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
-    password = Column(String, nullable=False)
-    learning_path = Column(String, nullable=True)
-    progress = Column(String, nullable=True)  # Store as JSON string
+    hashed_password = Column(String)
+    role = Column(Enum(UserRole))
 
-# Pydantic models for API validation
-class UserBase(BaseModel):
-    """Base user model with common attributes"""
-    name: str
-    email: str
-    learning_path: Optional[str] = None
-
-class UserCreate(UserBase):
-    """Model for creating a new user"""
-    # Note: In a real application, we would not include password in plain text
-    # This is just for demonstration purposes
-    password: str
-
-class UserUpdate(BaseModel):
-    """Model for updating user information"""
-    name: Optional[str] = None
-    email: Optional[str] = None
-    learning_path: Optional[str] = None
-    progress: Optional[dict] = None
-
-class UserResponse(UserBase):
-    """Response model for user data"""
-    id: int
-    progress: Optional[dict] = None
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
+    # Relationship with orders (a user can create multiple orders)
+    orders = relationship("Order", back_populates="created_by_user", lazy="select")
+    
+    # Many-to-many relationship with orders (staff users assigned to orders)
+    assigned_orders = relationship("Order", secondary="order_staff_association", back_populates="staff_users", lazy="select")

@@ -3,17 +3,31 @@ from sqlalchemy.orm import Session
 from typing import List
 import json
 from datetime import datetime, timezone
-from database import get_db
-from models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, InvoiceResponse, InvoiceItem
-from models.order import Order  # Import database Order model
-# Remove import of sample_orders since we're using database now
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.module (local development)
+    from app.database import get_db
+    from app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, InvoiceResponse, InvoiceItem
+    from app.models.order import Order  # Import database Order model
+except ImportError:
+    # Try importing directly (Docker container)
+    from database import get_db
+    from models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, InvoiceResponse, InvoiceItem
+    from models.order import Order  # Import database Order model
 
 router = APIRouter(prefix="/api/invoices", tags=["Invoices"])
 
 # Helper function to convert Order model to OrderResponse
 def order_model_to_response(order: Order) -> "OrderResponse":
     """Convert Order database model to OrderResponse Pydantic model"""
-    from models.order import OrderResponse, OrderItem  # Import here to avoid circular imports
+    # Import here to avoid circular imports
+    try:
+        # Try importing from app.module (local development)
+        from app.models.order import OrderResponse, OrderItem
+    except ImportError:
+        # Try importing directly (Docker container)
+        from models.order import OrderResponse, OrderItem
     
     # Parse order_data and modifiers from JSON strings
     order_items = json.loads(order.order_data) if order.order_data else []

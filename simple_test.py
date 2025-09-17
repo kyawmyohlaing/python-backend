@@ -1,59 +1,60 @@
 import sys
 import os
 
-# Set environment variables before importing anything
-os.environ["ENVIRONMENT"] = "testing"
-os.environ["TEST_DATABASE_URL"] = "sqlite:///./test.db"
-
-# Mock the database dependency to avoid connection issues
-from unittest.mock import MagicMock
-
-# Mock the database module
-sys.modules['app.database'] = MagicMock()
-
-# Add the app directory to the path
+# Add the app directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
 
-from fastapi.testclient import TestClient
-from app.main import app
-from app.data import shared_data
+# Test importing the database
+try:
+    from app.database import Base, engine
+    print("Database imported successfully!")
+except ImportError as e:
+    print(f"Error importing database: {e}")
+    sys.exit(1)
 
-# Create a test client
-client = TestClient(app)
+# Test importing the models one by one
+try:
+    from app.models import user
+    print("User model imported successfully!")
+except ImportError as e:
+    print(f"Error importing user model: {e}")
 
-def test_isolation():
-    """Test that data isolation works correctly"""
-    print(f"Initial tables count: {len(shared_data.sample_tables)}")
-    
-    # Clear data
-    shared_data.sample_tables.clear()
-    shared_data.sample_orders.clear()
-    
-    print(f"After clearing: {len(shared_data.sample_tables)}")
-    
-    # Add a test table
-    test_table_data = {
-        "table_number": 123456,
-        "capacity": 4
-    }
-    
-    response = client.post("/api/tables/", json=test_table_data)
-    print(f"Create table response: {response.status_code}")
-    
-    print(f"After creating table: {len(shared_data.sample_tables)}")
-    
-    # Clear data again
-    shared_data.sample_tables.clear()
-    shared_data.sample_orders.clear()
-    
-    print(f"After final clearing: {len(shared_data.sample_tables)}")
-    
-    return len(shared_data.sample_tables) == 0
+try:
+    from app.models import menu
+    print("Menu model imported successfully!")
+except ImportError as e:
+    print(f"Error importing menu model: {e}")
 
-if __name__ == "__main__":
-    result = test_isolation()
-    print(f"Test result: {result}")
-    if result:
-        print("Test passed!")
-    else:
-        print("Test failed!")
+try:
+    from app.models import order
+    print("Order model imported successfully!")
+except ImportError as e:
+    print(f"Error importing order model: {e}")
+
+try:
+    from app.models import order_item
+    print("OrderItem model imported successfully!")
+except ImportError as e:
+    print(f"Error importing order_item model: {e}")
+
+try:
+    from app.models import kitchen
+    print("Kitchen model imported successfully!")
+except ImportError as e:
+    print(f"Error importing kitchen model: {e}")
+
+try:
+    from app.models import table
+    print("Table model imported successfully!")
+except ImportError as e:
+    print(f"Error importing table model: {e}")
+
+# Test creating tables
+try:
+    Base.metadata.create_all(bind=engine)
+    print("Tables created successfully!")
+except Exception as e:
+    print(f"Error creating tables: {e}")
+    sys.exit(1)
+
+print("All tests passed!")

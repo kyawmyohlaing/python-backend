@@ -1,11 +1,19 @@
 import json
 from datetime import datetime
 from sqlalchemy.orm import Session
-# Since we're in the container and files are directly in /app, we import directly
-from models.user import User
-from schemas.user_schema import UserCreate, UserUpdate
-from security import hash_password, verify_password
 from typing import Optional
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.module (local development)
+    from app.models.user import User
+    from app.schemas.user_schema import UserCreate, UserUpdate
+    from app.security import hash_password, verify_password
+except ImportError:
+    # Try importing directly (Docker container)
+    from models.user import User
+    from schemas.user_schema import UserCreate, UserUpdate
+    from security import hash_password, verify_password
 
 class UserService:
     """Service class for handling user-related business logic"""

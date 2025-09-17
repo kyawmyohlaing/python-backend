@@ -1,82 +1,58 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, JSON
-from database import Base
-from pydantic import BaseModel
-from typing import List, Optional
+from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, Table
+from sqlalchemy.orm import relationship
 from datetime import datetime
-from .menu import MenuItemBase
+import enum
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.database (local development)
+    from app.database import Base
+except ImportError:
+    # Try importing from database directly (Docker container)
+    from database import Base
+
+
+class OrderStatus(str, enum.Enum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    PREPARING = "preparing"
+    READY = "ready"
+    SERVED = "served"
+    CANCELLED = "cancelled"
+
+
+class OrderType(str, enum.Enum):
+    DINE_IN = "dine_in"
+    TAKEAWAY = "takeaway"
+    DELIVERY = "delivery"
+
+
+# Association table for order and users (many-to-many relationship)
+order_staff_association = Table(
+    "order_staff_association",
+    Base.metadata,
+    Column("order_id", Integer, ForeignKey("orders.id")),
+    Column("user_id", Integer, ForeignKey("users.id"))
+)
+
 
 class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    total = Column(Float)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-    #Store order items as JSON string
-    order_data = Column(Text)
-    # New fields for modifiers and order type
-    modifiers = Column(Text)  #Store modifiers as JSON string
-    order_type = Column(String)  #dine-in, takeaway, delivery
-    table_number = Column(String, nullable=True)
-    customer_name = Column(String, nullable=True)
-    customer_phone = Column(String, nullable=True)
-    delivery_address = Column(String, nullable=True)
-    # Table information
-    table_id = Column(Integer, ForeignKey("tables.id"), nullable=True)
-    customer_count = Column(Integer, default=1)
+    table_number = Column(Integer)
+    order_type = Column(Enum(OrderType))
+    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     special_requests = Column(String, nullable=True)
-    # Seat information
-    assigned_seats = Column(String, nullable=True)  # JSON string of assigned seats
 
-# Pydantic models for API validation
-class OrderItem(MenuItemBase):
-    modifiers: Optional[List[str]] = None
+    # Foreign key to User (the user who created the order)
+    created_by = Column(Integer, ForeignKey("users.id"))
 
-
-class OrderBase(BaseModel):
-    order: List[OrderItem]
-    total: float
-    table_id: Optional[int] = None
-    customer_count: Optional[int] = 1
-    special_requests: Optional[str] = None
-    assigned_seats: Optional[List[int]] = None
-    #New fields for order type and customer information
-    order_type: Optional[str] = "dine-in"  # dine-in, takeaway, delivery
-    table_number: Optional[str] = None
-    customer_name: Optional[str] = None
-    customer_phone: Optional[str] = None
-    delivery_address: Optional[str] = None
-    modifiers: Optional[List[str]] = None
-
-
-class OrderCreate(OrderBase):
-    pass
-
-
-class OrderUpdate(BaseModel):
-    table_id: Optional[int] = None
-    customer_count: Optional[int] = None
-    special_requests: Optional[str] = None
-    order: Optional[List[OrderItem]] = None
-    total: Optional[float] = None
-    assigned_seats: Optional[List[int]] = None
-    #New fields for order type and customer information
-    order_type: Optional[str] = None
-    table_number: Optional[str] = None
-    customer_name: Optional[str] = None
-    customer_phone: Optional[str] = None
-    delivery_address: Optional[str] = None
-    modifiers: Optional[List[str]] = None
-
-
-class OrderResponse(OrderBase):
-    id: int
-    timestamp: datetime
-    modifiers: Optional[List[str]] = None
-    order_type: Optional[str] = None
-    table_number: Optional[str] = None
-    customer_name: Optional[str] = None
-    customer_phone: Optional[str] = None
-    delivery_address: Optional[str] = None
-
-    class Config:
-        from_attributes = True
+    # Relationships (using string references to avoid circular imports)
+    order_items = relationship("OrderItem", back_populates="order", lazy="select")
+    created_by_user = relationship("User", back_populates="orders", lazy="select")
+    
+    # Many-to-many relationship with staff users
+    staff_users = relationship("User", secondary=order_staff_association, back_populates="assigned_orders", lazy="select")

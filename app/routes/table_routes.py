@@ -1,39 +1,53 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
-from models.table import TableCreate, TableUpdate, TableResponse
-from models.order import OrderResponse
-from data.shared_data import sample_tables, sample_orders
+import json
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.module (local development)
+    from app.database import get_db
+    from app.models.table import Table
+    from app.models.order import Order
+    from app.schemas.order_schema import OrderResponse, OrderItem
+    from app.schemas.table_schema import TableResponse, TableCreate, TableUpdate
+except ImportError:
+    # Try importing directly (Docker container)
+    from database import get_db
+    from models.table import Table
+    from models.order import Order
+    from schemas.order_schema import OrderResponse, OrderItem
+    from schemas.table_schema import TableResponse, TableCreate, TableUpdate
 
 router = APIRouter(prefix="/api/tables", tags=["Tables"])
 
 @router.get("/", response_model=List[TableResponse])
-def get_tables():
-    """Get all tables"""
-    return sample_tables
+def get_tables(db: Session = Depends(get_db)):
+    """Get all tables from database"""
+    tables = db.query(Table).all()
+    return [TableResponse.model_validate(table) for table in tables]
 
 @router.get("/{table_id}", response_model=TableResponse)
-def get_table(table_id: int):
-    """Get a specific table by ID"""
-    table = next((t for t in sample_tables if t.id == table_id), None)
+def get_table(table_id: int, db: Session = Depends(get_db)):
+    """Get a specific table by ID from database"""
+    table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
-    return table
+    return TableResponse.model_validate(table)
 
 @router.post("/", response_model=TableResponse)
-def create_table(table: TableCreate):
-    """Create a new table"""
+def create_table(table: TableCreate, db: Session = Depends(get_db)):
+    """Create a new table in database"""
     # Check if table number already exists
-    existing_table = next((t for t in sample_tables if t.table_number == table.table_number), None)
+    existing_table = db.query(Table).filter(Table.table_number == table.table_number).first()
     if existing_table:
         raise HTTPException(status_code=400, detail="Table number already exists")
     
     # Initialize seats array with default values
     seats = [{"seat_number": i+1, "status": "available", "customer_name": None} for i in range(table.capacity)]
     
-    new_id = len(sample_tables) + 1
-    new_table = TableResponse(
-        id=new_id,
+    db_table = Table(
         table_number=table.table_number,
         capacity=table.capacity,
         is_occupied=False,
@@ -41,20 +55,24 @@ def create_table(table: TableCreate):
         status="available",
         seats=seats
     )
-    sample_tables.append(new_table)
-    return new_table
+    
+    db.add(db_table)
+    db.commit()
+    db.refresh(db_table)
+    
+    return TableResponse.model_validate(db_table)
 
 @router.put("/{table_id}", response_model=TableResponse)
-def update_table(table_id: int, table_update: TableUpdate):
+def update_table(table_id: int, table_update: TableUpdate, db: Session = Depends(get_db)):
     """Update a table"""
-    table = next((t for t in sample_tables if t.id == table_id), None)
+    table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
     
     # Update table fields if provided
     if table_update.table_number is not None:
         # Check if new table number already exists (and it's not the current table)
-        existing_table = next((t for t in sample_tables if t.table_number == table_update.table_number and t.id != table_id), None)
+        existing_table = db.query(Table).filter(Table.table_number == table_update.table_number, Table.id != table_id).first()
         if existing_table:
             raise HTTPException(status_code=400, detail="Table number already exists")
         table.table_number = table_update.table_number
@@ -86,13 +104,14 @@ def update_table(table_id: int, table_update: TableUpdate):
     if table_update.seats is not None:
         table.seats = table_update.seats
     
-    return table
+    db.commit()
+    db.refresh(table)
+    return TableResponse.model_validate(table)
 
 @router.delete("/{table_id}")
-def delete_table(table_id: int):
+def delete_table(table_id: int, db: Session = Depends(get_db)):
     """Delete a table"""
-    global sample_tables
-    table = next((t for t in sample_tables if t.id == table_id), None)
+    table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
     
@@ -100,19 +119,20 @@ def delete_table(table_id: int):
     if table.is_occupied:
         raise HTTPException(status_code=400, detail="Cannot delete an occupied table")
     
-    sample_tables = [t for t in sample_tables if t.id != table_id]
+    db.delete(table)
+    db.commit()
     return {"message": "Table deleted successfully"}
 
 # Table assignment functions
 @router.post("/{table_id}/assign/{order_id}", response_model=TableResponse)
-def assign_table_to_order(table_id: int, order_id: int):
+def assign_table_to_order(table_id: int, order_id: int, db: Session = Depends(get_db)):
     """Assign a table to an order"""
-    table = next((t for t in sample_tables if t.id == table_id), None)
+    table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
     
     # Check if order exists
-    order = next((o for o in sample_orders if o.id == order_id), None)
+    order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     
@@ -131,18 +151,20 @@ def assign_table_to_order(table_id: int, order_id: int):
         table.seats = []
     
     # Get customer name from order if available
-    customer_name = order.customer_name if order.customer_name else None
+    customer_name = getattr(order, 'customer_name', None)
     
     for seat in table.seats:
         seat["status"] = "occupied"
         seat["customer_name"] = customer_name
     
-    return table
+    db.commit()
+    db.refresh(table)
+    return TableResponse.model_validate(table)
 
 @router.post("/{table_id}/release", response_model=TableResponse)
-def release_table(table_id: int):
+def release_table(table_id: int, db: Session = Depends(get_db)):
     """Release a table (mark as available)"""
-    table = next((t for t in sample_tables if t.id == table_id), None)
+    table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
     
@@ -159,13 +181,15 @@ def release_table(table_id: int):
         seat["status"] = "available"
         seat["customer_name"] = None
     
-    return table
+    db.commit()
+    db.refresh(table)
+    return TableResponse.model_validate(table)
 
 # Seat management functions
 @router.post("/{table_id}/assign-seat/{seat_number}")
-def assign_seat(table_id: int, seat_number: int, customer_name: str = ""):
+def assign_seat(table_id: int, seat_number: int, customer_name: str = "", db: Session = Depends(get_db)):
     """Assign a specific seat at a table"""
-    table = next((t for t in sample_tables if t.id == table_id), None)
+    table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
     
@@ -187,12 +211,14 @@ def assign_seat(table_id: int, seat_number: int, customer_name: str = ""):
         table.is_occupied = True
         table.status = "occupied"
     
+    db.commit()
+    db.refresh(table)
     return {"message": f"Seat {seat_number} assigned successfully"}
 
 @router.post("/{table_id}/release-seat/{seat_number}")
-def release_seat(table_id: int, seat_number: int):
+def release_seat(table_id: int, seat_number: int, db: Session = Depends(get_db)):
     """Release a specific seat at a table"""
-    table = next((t for t in sample_tables if t.id == table_id), None)
+    table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
     
@@ -215,14 +241,16 @@ def release_seat(table_id: int, seat_number: int):
         table.current_order_id = None
         table.status = "available"
     
+    db.commit()
+    db.refresh(table)
     return {"message": f"Seat {seat_number} released successfully"}
 
 # Merge/Split bill functions
 @router.post("/merge-tables/{table_id_1}/{table_id_2}", response_model=TableResponse)
-def merge_tables(table_id_1: int, table_id_2: int):
+def merge_tables(table_id_1: int, table_id_2: int, db: Session = Depends(get_db)):
     """Merge two tables into one order"""
-    table1 = next((t for t in sample_tables if t.id == table_id_1), None)
-    table2 = next((t for t in sample_tables if t.id == table_id_2), None)
+    table1 = db.query(Table).filter(Table.id == table_id_1).first()
+    table2 = db.query(Table).filter(Table.id == table_id_2).first()
     
     if not table1 or not table2:
         raise HTTPException(status_code=404, detail="One or both tables not found")
@@ -231,19 +259,23 @@ def merge_tables(table_id_1: int, table_id_2: int):
         raise HTTPException(status_code=400, detail="Both tables must be occupied to merge")
     
     # Get the orders for both tables
-    order1 = next((o for o in sample_orders if o.id == table1.current_order_id), None)
-    order2 = next((o for o in sample_orders if o.id == table2.current_order_id), None)
+    order1 = db.query(Order).filter(Order.id == table1.current_order_id).first()
+    order2 = db.query(Order).filter(Order.id == table2.current_order_id).first()
     
     if not order1 or not order2:
         raise HTTPException(status_code=404, detail="Orders not found for one or both tables")
     
     # Combine orders (in a real app, you might want to create a new order)
     # For simplicity, we'll merge into the first order
-    combined_order_items = order1.order + order2.order
+    # Parse order_data from JSON strings
+    order1_items = json.loads(order1.order_data) if order1.order_data else []
+    order2_items = json.loads(order2.order_data) if order2.order_data else []
+    
+    combined_order_items = order1_items + order2_items
     combined_total = order1.total + order2.total
     
     # Update the first order with combined items
-    order1.order = combined_order_items
+    order1.order_data = json.dumps(combined_order_items)
     order1.total = combined_total
     
     # Release the second table
@@ -266,12 +298,15 @@ def merge_tables(table_id_1: int, table_id_2: int):
     for i in range(len(table1.seats), table1.capacity):
         table1.seats.append({"seat_number": i+1, "status": "occupied", "customer_name": None})
     
-    return table1
+    db.commit()
+    db.refresh(table1)
+    db.refresh(table2)
+    return TableResponse.model_validate(table1)
 
 @router.post("/split-bill/{table_id}", response_model=List[OrderResponse])
-def split_bill(table_id: int, split_details: dict):
+def split_bill(table_id: int, split_details: dict, db: Session = Depends(get_db)):
     """Split a bill at a table into separate orders"""
-    table = next((t for t in sample_tables if t.id == table_id), None)
+    table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
     
@@ -279,7 +314,7 @@ def split_bill(table_id: int, split_details: dict):
         raise HTTPException(status_code=400, detail="Table must be occupied to split bill")
     
     # Get the current order
-    current_order = next((o for o in sample_orders if o.id == table.current_order_id), None)
+    current_order = db.query(Order).filter(Order.id == table.current_order_id).first()
     if not current_order:
         raise HTTPException(status_code=404, detail="Order not found")
     
@@ -287,37 +322,64 @@ def split_bill(table_id: int, split_details: dict):
     # For example: {"split_1": [item_indices], "split_2": [item_indices]}
     new_orders = []
     
+    # Parse order_data from JSON string
+    current_order_items = json.loads(current_order.order_data) if current_order.order_data else []
+    
     # Create new orders based on split details
     for split_key, item_indices in split_details.items():
         # Create a new order with selected items
-        split_items = [current_order.order[i] for i in item_indices]
-        split_total = sum(item.price for item in split_items)
+        split_items = [current_order_items[i] for i in item_indices if i < len(current_order_items)]
+        split_total = sum(item.get("price", 0.0) for item in split_items)
         
-        new_order_id = len(sample_orders) + 1
-        new_order = OrderResponse(
-            id=new_order_id,
-            order=split_items,
+        # Convert items to OrderItem objects for response
+        order_item_objects = [
+            OrderItem(
+                name=item.get("name", ""),
+                price=item.get("price", 0.0),
+                category=item.get("category", ""),
+                modifiers=item.get("modifiers", [])
+            ) for item in split_items
+        ]
+        
+        # Create new order in database
+        new_order = Order(
             total=split_total,
+            order_data=json.dumps(split_items),
             table_id=table_id,  # Same table
             customer_count=len(item_indices),  # Approximate
             special_requests=None,
             timestamp=datetime.now()
         )
-        sample_orders.append(new_order)
-        new_orders.append(new_order)
+        
+        db.add(new_order)
+        db.commit()
+        db.refresh(new_order)
+        
+        # Convert to response format
+        new_order_response = OrderResponse(
+            id=new_order.id,
+            order=order_item_objects,
+            total=new_order.total,
+            table_id=new_order.table_id,
+            customer_count=new_order.customer_count,
+            special_requests=new_order.special_requests,
+            timestamp=new_order.timestamp
+        )
+        
+        new_orders.append(new_order_response)
     
     return new_orders
 
 # Get occupied tables
 @router.get("/occupied/", response_model=List[TableResponse])
-def get_occupied_tables():
+def get_occupied_tables(db: Session = Depends(get_db)):
     """Get all occupied tables"""
-    occupied_tables = [t for t in sample_tables if t.is_occupied]
-    return occupied_tables
+    occupied_tables = db.query(Table).filter(Table.is_occupied == True).all()
+    return [TableResponse.model_validate(table) for table in occupied_tables]
 
 # Get available tables
 @router.get("/available/", response_model=List[TableResponse])
-def get_available_tables():
+def get_available_tables(db: Session = Depends(get_db)):
     """Get all available tables"""
-    available_tables = [t for t in sample_tables if not t.is_occupied and t.status == "available"]
-    return available_tables
+    available_tables = db.query(Table).filter(Table.is_occupied == False, Table.status == "available").all()
+    return [TableResponse.model_validate(table) for table in available_tables]

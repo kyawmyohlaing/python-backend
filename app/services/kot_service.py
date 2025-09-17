@@ -7,9 +7,8 @@ import json
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-from models.order import OrderResponse
-from models.kitchen import KitchenOrderDetail
-from data.shared_data import sample_orders, sample_kitchen_orders
+from app.models.order import Order, OrderItem
+from app.models.kitchen import KitchenOrder, KitchenOrderDetail
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -365,36 +364,52 @@ class KOTService:
         Returns:
             Dictionary mapping station IDs to result dictionaries
         """
-        # Find the order and corresponding kitchen order
-        order = next((o for o in sample_orders if o.id == order_id), None)
-        kitchen_order_record = next((ko for ko in sample_kitchen_orders if ko.order_id == order_id), None)
+        # Get database session
+        from app.database import SessionLocal
+        db = SessionLocal()
         
-        if not order:
-            raise ValueError(f"Order {order_id} not found")
-        
-        if not kitchen_order_record:
-            raise ValueError(f"Order {order_id} not in kitchen")
-        
-        # Create KitchenOrderDetail object
-        kitchen_order = KitchenOrderDetail(
-            id=kitchen_order_record.id,
-            order_id=kitchen_order_record.order_id,
-            status=kitchen_order_record.status,
-            created_at=kitchen_order_record.created_at,
-            updated_at=kitchen_order_record.updated_at,
-            order_items=order.order,
-            total=order.total,
-            order_type=getattr(order, 'order_type', 'dine-in'),
-            table_number=getattr(order, 'table_number', None),
-            customer_name=getattr(order, 'customer_name', None)
-        )
-        
-        # Add special requests if they exist (but don't add modifiers to avoid the field error)
-        if hasattr(order, 'special_requests') and order.special_requests:
-            kitchen_order.special_requests = order.special_requests
-        
-        # Route to appropriate stations
-        return self.route_order_to_stations(kitchen_order)
+        try:
+            # Find the order and corresponding kitchen order from database
+            order = db.query(Order).filter(Order.id == order_id).first()
+            kitchen_order_record = db.query(KitchenOrder).filter(KitchenOrder.order_id == order_id).first()
+            
+            if not order:
+                raise ValueError(f"Order {order_id} not found")
+            
+            if not kitchen_order_record:
+                raise ValueError(f"Order {order_id} not in kitchen")
+            
+            # Convert order data from JSON
+            order_items_dict = json.loads(order.order_data) if order.order_data else []
+            
+            # Convert to OrderItem objects
+            order_items = [
+                OrderItem(
+                    name=item.get("name", ""),
+                    price=item.get("price", 0.0),
+                    category=item.get("category", ""),
+                    modifiers=item.get("modifiers", [])
+                ) for item in order_items_dict
+            ]
+            
+            # Create KitchenOrderDetail object
+            kitchen_order = KitchenOrderDetail(
+                id=kitchen_order_record.id,
+                order_id=kitchen_order_record.order_id,
+                status=kitchen_order_record.status,
+                created_at=kitchen_order_record.created_at,
+                updated_at=kitchen_order_record.updated_at,
+                order_items=order_items,
+                total=order.total,
+                order_type=getattr(order, 'order_type', 'dine-in'),
+                table_number=getattr(order, 'table_number', None),
+                customer_name=getattr(order, 'customer_name', None)
+            )
+            
+            # Route to appropriate stations
+            return self.route_order_to_stations(kitchen_order)
+        finally:
+            db.close()
 
     def get_printer_status(self, printer_id: str) -> Dict[str, any]:
         """

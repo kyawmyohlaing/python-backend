@@ -2,11 +2,23 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
-from app.database import get_db
-from app.models.kitchen import KitchenOrder, KitchenOrderCreate, KitchenOrderUpdate, KitchenOrderResponse, KitchenOrderDetail
-from app.models.order import Order, OrderResponse, OrderItem
-from app.services.kot_service_simple import kot_service
 import json
+
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.module (local development)
+    from app.database import get_db
+    from app.models.kitchen import KitchenOrder
+    from app.models.order import Order
+    from app.schemas import KitchenOrderCreate, KitchenOrderUpdate, KitchenOrderResponse, KitchenOrderDetail, OrderItem
+    from app.services.kot_service_simple import kot_service
+except ImportError:
+    # Try importing directly (Docker container)
+    from database import get_db
+    from models.kitchen import KitchenOrder
+    from models.order import Order
+    from schemas import KitchenOrderCreate, KitchenOrderUpdate, KitchenOrderResponse, KitchenOrderDetail, OrderItem
+    from services.kot_service_simple import kot_service
 
 router = APIRouter(prefix="/api/kitchen", tags=["Kitchen"])
 
@@ -14,30 +26,34 @@ router = APIRouter(prefix="/api/kitchen", tags=["Kitchen"])
 def kitchen_order_to_detail(kitchen_order: KitchenOrder, db_order: Order) -> KitchenOrderDetail:
     """Convert database KitchenOrder and Order models to KitchenOrderDetail response model"""
     # Parse order_data from JSON string
-    order_data_str = db_order.order_data
-    order_items_data = json.loads(order_data_str) if order_data_str else []
+    try:
+        order_items_data = json.loads(db_order.order_data) if db_order.order_data else []
+    except (json.JSONDecodeError, TypeError):
+        order_items_data = []
     
     # Convert order items to OrderItem objects
-    order_item_objects = [
-        OrderItem(
-            name=item.get("name", ""),
-            price=float(item.get("price", 0.0)),
-            category=item.get("category", ""),
-            modifiers=item.get("modifiers", [])
-        ) for item in order_items_data
-    ]
+    order_item_objects = []
+    for item in order_items_data:
+        order_item_objects.append(
+            OrderItem(
+                name=item.get("name", ""),
+                price=float(item.get("price", 0.0)),
+                category=item.get("category", ""),
+                modifiers=item.get("modifiers", [])
+            )
+        )
     
     return KitchenOrderDetail(
-        id=int(kitchen_order.id),
-        order_id=int(kitchen_order.order_id),
-        status=str(kitchen_order.status),
+        id=kitchen_order.id,
+        order_id=kitchen_order.order_id,
+        status=kitchen_order.status,
         created_at=kitchen_order.created_at,
         updated_at=kitchen_order.updated_at,
         order_items=order_item_objects,
-        total=float(db_order.total) if db_order.total else 0.0,
-        order_type=str(db_order.order_type) if db_order.order_type else 'dine-in',
-        table_number=str(db_order.table_number) if db_order.table_number else None,
-        customer_name=str(db_order.customer_name) if db_order.customer_name else None
+        total=float(db_order.total) if db_order.total is not None else 0.0,
+        order_type=db_order.order_type or "dine-in",
+        table_number=db_order.table_number,
+        customer_name=db_order.customer_name
     )
 
 @router.get("/orders", response_model=List[KitchenOrderDetail])
@@ -116,7 +132,7 @@ def update_kitchen_order_status(order_id: int, kitchen_order_update: KitchenOrde
     
     # Update the status
     kitchen_order.status = kitchen_order_update.status
-    kitchen_order.updated_at = datetime.now()
+    kitchen_order.updated_at = datetime.utcnow()
     
     db.commit()
     db.refresh(kitchen_order)
@@ -143,7 +159,7 @@ def mark_order_as_served(order_id: int, db: Session = Depends(get_db)):
     
     # Update the status to served
     kitchen_order.status = "served"
-    kitchen_order.updated_at = datetime.now()
+    kitchen_order.updated_at = datetime.utcnow()
     
     db.commit()
     db.refresh(kitchen_order)
@@ -190,8 +206,8 @@ def test_kitchen_printer(printer_id: str):
             id=0,
             order_id=0,
             status='test',
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
             order_items=test_items,
             total=5.99,
             order_type='test',
