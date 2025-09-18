@@ -116,6 +116,30 @@ def create_order(order: OrderCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_order)
         
+        # If this is a dine-in order with a table number, automatically assign the table
+        if db_order.order_type == "dine_in" and db_order.table_number:
+            # Look up the table by table number
+            table = db.query(Table).filter(Table.table_number == int(db_order.table_number)).first()
+            if table:
+                # Assign the table to the order
+                table.is_occupied = True
+                table.current_order_id = db_order.id
+                table.status = "occupied"
+                
+                # Mark all seats as occupied and assign customer name from order
+                customer_name = getattr(db_order, 'customer_name', None)
+                if table.seats:
+                    for seat in table.seats:
+                        seat["status"] = "occupied"
+                        seat["customer_name"] = customer_name
+                
+                # Update the order's table_id to reference the actual table
+                db_order.table_id = table.id
+                
+                db.commit()
+                db.refresh(table)
+                db.refresh(db_order)
+        
         # Convert to response format
         response_order = order_model_to_response(db_order)
         
