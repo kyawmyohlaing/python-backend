@@ -27,3 +27,6 @@ class MenuItem(Base):
 
     # Relationship with order items (using string reference to avoid circular imports)
     order_items = relationship("OrderItem", back_populates="menu_item", lazy="select")
+    
+    # Relationship with ingredients through association table
+    ingredients = relationship("Ingredient", secondary="item_ingredients", back_populates="menu_items")

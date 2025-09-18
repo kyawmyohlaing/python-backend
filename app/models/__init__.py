@@ -6,5 +6,6 @@ from .order_item import OrderItem
 from .invoice import Invoice
 from .kitchen import KitchenOrder
 from .table import Table
+from .stock import Ingredient, StockTransaction
 
-__all__ = ['User', 'MenuItem', 'Order', 'OrderItem', 'Invoice', 'KitchenOrder', 'Table']
+__all__ = ['User', 'MenuItem', 'Order', 'OrderItem', 'Invoice', 'KitchenOrder', 'Table', 'Ingredient', 'StockTransaction']

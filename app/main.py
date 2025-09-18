@@ -6,17 +6,19 @@ from fastapi.middleware.cors import CORSMiddleware
 # Handle imports for both local development and Docker container environments
 try:
     # Try importing from app.module (local development)
-    from app.models import user, menu, order, order_item, invoice, kitchen, table
+    from app.models import user, menu, order, order_item, invoice, kitchen, table, stock
     from app.routes import user_router, menu_router, order_router, table_router, invoice_router
     from app.routes.kitchen_routes_db import router as kitchen_router
+    from app.routes.stock_routes import router as stock_router
     from app.database import Base, engine
     from app.config import Config
 except ImportError:
     # Try importing directly (Docker container)
     try:
-        from models import user, menu, order, order_item, invoice, kitchen, table
+        from models import user, menu, order, order_item, invoice, kitchen, table, stock
         from routes import user_router, menu_router, order_router, table_router, invoice_router
         from routes.kitchen_routes_db import router as kitchen_router
+        from routes.stock_routes import router as stock_router
         from database import Base, engine
         from config import Config
     except ImportError:
@@ -44,6 +46,7 @@ app.include_router(order_router)
 app.include_router(kitchen_router)
 app.include_router(table_router)
 app.include_router(invoice_router)
+app.include_router(stock_router)
 
 @app.get("/")
 def root():
