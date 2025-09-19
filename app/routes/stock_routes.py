@@ -143,6 +143,39 @@ def get_ingredient_transactions(ingredient_id: int, db: Session = Depends(get_db
     ).all()
     return transactions
 
+# Add the missing GET endpoint for fetching menu item ingredients
+@router.get("/menu-items/{menu_item_id}/ingredients", response_model=List[dict])
+def get_menu_item_ingredients(menu_item_id: int, db: Session = Depends(get_db)):
+    """Get all ingredients for a menu item"""
+    # Check if menu item exists
+    menu_item = db.query(MenuItem).filter(MenuItem.id == menu_item_id).first()
+    if not menu_item:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+    
+    # Query the association table to get ingredients for this menu item
+    ingredients_query = db.query(
+        item_ingredients.c.ingredient_id,
+        Ingredient.name,
+        item_ingredients.c.quantity,
+        item_ingredients.c.unit
+    ).select_from(item_ingredients.join(Ingredient)).filter(
+        item_ingredients.c.menu_item_id == menu_item_id
+    )
+    
+    ingredients = ingredients_query.all()
+    
+    # Convert to response format
+    result = []
+    for ingredient in ingredients:
+        result.append({
+            "ingredient_id": ingredient.ingredient_id,
+            "name": ingredient.name,
+            "quantity": ingredient.quantity,
+            "unit": ingredient.unit
+        })
+    
+    return result
+
 @router.post("/menu-items/{menu_item_id}/ingredients/{ingredient_id}")
 def add_ingredient_to_menu_item(menu_item_id: int, ingredient_id: int, quantity: float, unit: str, db: Session = Depends(get_db)):
     """Add an ingredient to a menu item"""
