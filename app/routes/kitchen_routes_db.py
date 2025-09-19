@@ -43,6 +43,16 @@ def kitchen_order_to_detail(kitchen_order: KitchenOrder, db_order: Order) -> Kit
             )
         )
     
+    # Properly handle order_type - don't default to "dine_in" if it's None
+    order_type = db_order.order_type
+    if order_type is None:
+        order_type = "dine_in"  # Default to dine_in only if explicitly None
+    
+    # Convert table_number to string if it's an integer
+    table_number = db_order.table_number
+    if table_number is not None:
+        table_number = str(table_number)
+    
     return KitchenOrderDetail(
         id=kitchen_order.id,
         order_id=kitchen_order.order_id,
@@ -51,8 +61,8 @@ def kitchen_order_to_detail(kitchen_order: KitchenOrder, db_order: Order) -> Kit
         updated_at=kitchen_order.updated_at,
         order_items=order_item_objects,
         total=float(db_order.total) if db_order.total is not None else 0.0,
-        order_type=db_order.order_type or "dine_in",
-        table_number=db_order.table_number,
+        order_type=str(order_type) if order_type is not None else None,
+        table_number=table_number,
         customer_name=db_order.customer_name
     )
 
