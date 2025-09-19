@@ -143,21 +143,28 @@ def create_order(order: OrderCreate, db: Session = Depends(get_db)):
         # Convert to response format
         response_order = order_model_to_response(db_order)
         
-        # Automatically add the order to the kitchen (using database now)
-        kitchen_order = KitchenOrder(
-            order_id=db_order.id,
-            status="pending"
-        )
-        db.add(kitchen_order)
-        db.commit()
-        db.refresh(kitchen_order)
-        
-        # Automatically print KOT for the new order
-        try:
-            kot_service.print_kot_for_order(db_order.id)
-        except Exception as e:
-            # Log the error but don't fail the order creation
-            print(f"Warning: Failed to print KOT for order {db_order.id}: {str(e)}")
+        # Only automatically add dine-in orders to the kitchen
+        # Takeaway and delivery orders should not go to the kitchen
+        if db_order.order_type == "dine_in":
+            # Automatically add the order to the kitchen (using database now)
+            kitchen_order = KitchenOrder(
+                order_id=db_order.id,
+                status="pending"
+            )
+            db.add(kitchen_order)
+            db.commit()
+            db.refresh(kitchen_order)
+            
+            # Automatically print KOT for the new order
+            try:
+                kot_service.print_kot_for_order(db_order.id)
+            except Exception as e:
+                # Log the error but don't fail the order creation
+                print(f"Warning: Failed to print KOT for order {db_order.id}: {str(e)}")
+        else:
+            # For takeaway and delivery orders, we might want to handle them differently
+            # For now, we'll just log that they were created
+            print(f"Order {db_order.id} ({db_order.order_type}) created - not sent to kitchen")
         
         return response_order
     except Exception as e:
