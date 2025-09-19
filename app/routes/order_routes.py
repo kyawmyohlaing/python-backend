@@ -36,9 +36,20 @@ router = APIRouter(prefix="/api/orders", tags=["Orders"])
 def order_model_to_response(order: Order) -> OrderResponse:
     """Convert Order database model to OrderResponse Pydantic model"""
     # Parse order_data and modifiers from JSON strings
-    order_items = json.loads(order.order_data) if order.order_data else []
-    modifiers = json.loads(order.modifiers) if order.modifiers else None
-    assigned_seats = json.loads(order.assigned_seats) if order.assigned_seats else None
+    try:
+        order_items = json.loads(order.order_data) if order.order_data else []
+    except (json.JSONDecodeError, TypeError):
+        order_items = []
+    
+    try:
+        modifiers = json.loads(order.modifiers) if order.modifiers else None
+    except (json.JSONDecodeError, TypeError):
+        modifiers = None
+        
+    try:
+        assigned_seats = json.loads(order.assigned_seats) if order.assigned_seats else None
+    except (json.JSONDecodeError, TypeError):
+        assigned_seats = None
     
     # Convert order items to OrderItem objects
     order_item_objects = [
@@ -50,6 +61,20 @@ def order_model_to_response(order: Order) -> OrderResponse:
         ) for item in order_items
     ]
     
+    # Handle order_type properly
+    order_type_value = None
+    if order.order_type is not None:
+        # If it's an enum, get its value, otherwise convert to string
+        if hasattr(order.order_type, 'value'):
+            order_type_value = order.order_type.value
+        else:
+            order_type_value = str(order.order_type)
+    
+    # Convert table_number to string - this is the key fix for the error
+    table_number_str = None
+    if order.table_number is not None:
+        table_number_str = str(order.table_number)
+    
     return OrderResponse(
         id=order.id,
         order=order_item_objects,
@@ -59,8 +84,8 @@ def order_model_to_response(order: Order) -> OrderResponse:
         customer_count=order.customer_count,
         special_requests=order.special_requests,
         assigned_seats=assigned_seats,
-        order_type=order.order_type,
-        table_number=order.table_number,
+        order_type=order_type_value,
+        table_number=table_number_str,  # This is the key fix
         customer_name=order.customer_name,
         customer_phone=order.customer_phone,
         delivery_address=order.delivery_address,
@@ -96,6 +121,15 @@ def create_order(order: OrderCreate, db: Session = Depends(get_db)):
             for item in order.order
         ]
         
+        # Convert table_number to integer if provided
+        table_number_int = None
+        if order.table_number is not None:
+            try:
+                table_number_int = int(order.table_number)
+            except ValueError:
+                # If conversion fails, keep it as None
+                pass
+        
         # Create new order in database
         db_order = Order(
             total=order.total,
@@ -105,7 +139,7 @@ def create_order(order: OrderCreate, db: Session = Depends(get_db)):
             special_requests=order.special_requests,
             assigned_seats=json.dumps(order.assigned_seats) if order.assigned_seats else None,
             order_type=order.order_type,
-            table_number=order.table_number,
+            table_number=table_number_int,
             customer_name=order.customer_name,
             customer_phone=order.customer_phone,
             delivery_address=order.delivery_address,
@@ -119,7 +153,7 @@ def create_order(order: OrderCreate, db: Session = Depends(get_db)):
         # If this is a dine-in order with a table number, automatically assign the table
         if db_order.order_type == "dine_in" and db_order.table_number:
             # Look up the table by table number
-            table = db.query(Table).filter(Table.table_number == int(db_order.table_number)).first()
+            table = db.query(Table).filter(Table.table_number == db_order.table_number).first()
             if table:
                 # Assign the table to the order
                 table.is_occupied = True

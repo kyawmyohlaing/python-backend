@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Optional
 from datetime import datetime
 from .menu_schema import MenuItemBase
@@ -39,6 +39,13 @@ class OrderUpdate(BaseModel):
 class OrderResponse(OrderBase):
     id: int
     timestamp: datetime
+    order_type: Optional[str] = None
+    table_number: Optional[str] = None
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    delivery_address: Optional[str] = None
+    assigned_seats: Optional[List[int]] = None
+    modifiers: Optional[dict] = None
 
     class Config:
         from_attributes = True
