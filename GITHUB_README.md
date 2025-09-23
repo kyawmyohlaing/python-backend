@@ -1,107 +1,71 @@
 # FastAPI Backend Template
 
-A production-ready FastAPI backend template with PostgreSQL, Alembic, JWT authentication, and Docker support. This template provides a solid foundation for building scalable, secure web APIs with Python and FastAPI.
+A production-ready FastAPI backend template with PostgreSQL, JWT authentication, Alembic migrations, and Docker support.
 
-## 🌟 Features
+## 🚀 Features
 
-- **FastAPI** - Modern, fast (high-performance) web framework for building APIs
-- **PostgreSQL** - Production-ready database with persistent storage
-- **SQLAlchemy** - ORM for database operations
-- **Alembic** - Database migration tool with automatic seeding
-- **JWT Authentication** - Secure token-based authentication
-- **Bcrypt** - Password hashing for security
-- **Pydantic** - Data validation and settings management
-- **Docker** - Containerization for easy deployment
-- **Gunicorn** - Production-ready WSGI server
-- **Hot Reload** - Development mode with automatic reloading
+- **FastAPI**: High-performance Python web framework
+- **PostgreSQL**: Production-ready database with connection pooling
+- **JWT Authentication**: Secure token-based authentication
+- **Alembic**: Database migration management
+- **Docker**: Containerized deployment with separate dev/prod configs
+- **Gunicorn/Uvicorn**: Production server with hot reload for development
+- **Pydantic**: Data validation and serialization
+- **SQLAlchemy**: ORM for database operations
+- **Environment-based Configuration**: Flexible configuration management
+- **Comprehensive Testing**: Unit and integration tests included
+- **CORS Support**: Cross-origin resource sharing configuration
+- **Makefile**: Simplified development commands
+- **Documentation**: Extensive documentation and examples
 
-## 🚀 Quick Start
+## 🏁 Quick Start
 
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd fastapi-backend-template
+   ```
+
+2. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env to set your SECRET_KEY
+   ```
+
+3. **Start the development server**
+   ```bash
+   make dev
+   ```
+
+   Or with Docker:
+   ```bash
+   docker-compose up --build
+   ```
+
+4. **Access the application**
+   The application will be available at `http://localhost:8088`.
+
+## 📚 Documentation
+
+- [Project Overview](SUMMARY.md)
+- [Setup Guide](SETUP_GUIDE.md)
+- [Development Guide](DEVELOPMENT_GUIDE.md)
+- [API Documentation](API_DOCUMENTATION.md)
+- [Authentication Flow](AUTH_FLOW.md)
+- [Testing Guide](TESTING_README.md)
+- [Deployment Guide](DEPLOYMENT_GUIDE.md)
+- [Troubleshooting Guide](TROUBLESHOOTING.md)
+
+## 🧪 Testing
+
+Run the test suite:
 ```bash
-# Clone the repository
-git clone <your-github-repo-url>
-cd fastapi-backend-template
-
-# Copy the environment file
-cp .env.example .env
-
-# Start in development mode (with hot reload)
-make dev
-
-# Or start in production mode (with Gunicorn workers)
-make prod
+make test
 ```
 
-The application will be available at `http://localhost:8000`.
-
-## 📁 Project Structure
-
-```
-fastapi-backend-template/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── config.py
-│   ├── database.py
-│   ├── security.py
-│   ├── models/
-│   │   └── user.py
-│   ├── schemas/
-│   │   └── user_schema.py
-│   ├── services/
-│   │   └── user_service.py
-│   ├── routes/
-│   │   └── user_routes.py
-│   └── migrations/
-│       ├── alembic.ini
-│       ├── env.py
-│       └── versions/
-├── Dockerfile
-├── docker-compose.yml
-├── docker-compose.override.yml
-├── start.sh
-├── Makefile
-├── requirements.txt
-└── .env.example
-```
-
-## 🛠️ Makefile Commands
-
+Or with Docker:
 ```bash
-make dev       # Start development (hot reload)
-make prod      # Start production (Gunicorn)
-make down      # Stop all containers
-make logs      # View web logs
-make migrate   # Run Alembic migrations
-make test      # Run tests
-```
-
-## 🔐 Authentication
-
-The template includes JWT-based authentication with the following endpoints:
-
-- `POST /users/register` - Register a new user
-- `POST /users/login` - Login and receive a JWT token
-- `GET /users/me` - Get current user (JWT protected)
-
-### Seeded Example User
-
-The database is automatically seeded with an example user for testing:
-
-- Email: `user@example.com`
-- Password: `password123`
-
-### Testing with cURL
-
-```bash
-# Login with the example user
-curl -X POST http://localhost:8000/users/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "password123"}'
-
-# Access protected route (replace <access_token> with the token from the login response)
-curl http://localhost:8000/users/me \
-  -H "Authorization: Bearer <access_token>"
+docker-compose exec web pytest
 ```
 
 ## 🐳 Docker Setup
@@ -115,15 +79,10 @@ The template includes a complete Docker setup with separate configurations for d
 
 ## 🧪 Testing
 
-The template includes comprehensive tests:
-
-```bash
-# Run unit tests
-make test
-
-# Or run directly
-python -m pytest tests/
-```
+- Unit tests for business logic
+- Integration tests for API endpoints
+- Support for both SQLite and PostgreSQL
+- Test runner script included
 
 ## 📦 Dependencies
 
@@ -134,12 +93,74 @@ python -m pytest tests/
 - psycopg2-binary
 - alembic
 - python-dotenv
-- passlib[bcrypt]
-- python-jose[cryptography]
 
-## 📋 Project Summary
+## 🛠️ Development Commands
 
-For a detailed overview of the project architecture and features, see [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md).
+| Command | Description |
+|---------|-------------|
+| `make dev` | Start development server |
+| `make prod` | Start production server |
+| `make test` | Run all tests |
+| `make migrate` | Run database migrations |
+| `make logs` | View application logs |
+| `make clean` | Clean temporary files |
+
+## 🔐 Authentication Flow
+
+1. Register a new user account (password is hashed)
+2. Login with email/password to receive JWT token
+3. Use JWT token in Authorization header for protected routes
+4. Retrieve user profile information
+
+## 🧪 API Testing
+
+Test the API endpoints with cURL:
+
+```bash
+# Login with the example user
+curl -X POST http://localhost:8088/users/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "password123"}'
+
+# Access protected route (replace YOUR_TOKEN_HERE with actual token)
+curl http://localhost:8088/users/me \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+## 🗃️ Database Migrations
+
+Generate and apply migrations:
+```bash
+# Generate a new migration
+docker-compose exec web alembic revision --autogenerate -m "Description"
+
+# Apply migrations
+docker-compose exec web alembic upgrade head
+```
+
+## 📖 Project Structure
+
+```
+.
+├── app/                 # Main application code
+│   ├── main.py          # Application entry point
+│   ├── config.py        # Configuration management
+│   ├── database.py      # Database connection setup
+│   ├── security.py      # Authentication and password hashing
+│   ├── models/          # Database models (SQLAlchemy)
+│   ├── schemas/         # Data validation models (Pydantic)
+│   ├── routes/          # API endpoints (FastAPI)
+│   ├── services/        # Business logic
+│   ├── utils/           # Utility functions
+│   └── migrations/      # Database migration scripts
+├── tests/               # Unit and integration tests
+├── Dockerfile           # Production Docker configuration
+├── docker-compose.yml   # Production services configuration
+├── docker-compose.override.yml  # Development environment overrides
+├── Makefile             # Development commands
+├── requirements.txt     # Python dependencies
+└── .env.example         # Environment variables template
+```
 
 ## 🤝 Contributing
 
@@ -147,7 +168,7 @@ For a detailed overview of the project architecture and features, see [PROJECT_S
 2. Create a feature branch
 3. Commit your changes
 4. Push to the branch
-5. Create a pull request
+5. Create a Pull Request
 
 ## 📄 License
 

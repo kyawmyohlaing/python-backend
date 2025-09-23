@@ -23,12 +23,12 @@ help:
 # Development server
 .PHONY: dev
 dev:
-	$(PYTHON) $(APP)
+	PORT=8088 $(PYTHON) $(APP)
 
 # Production server
 .PHONY: prod
 prod:
-	gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+	gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8088
 
 # Run tests
 .PHONY: test

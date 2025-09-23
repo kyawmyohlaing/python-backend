@@ -1,48 +1,32 @@
 #!/usr/bin/env python3
 """
-API Testing Script for FastAPI Backend Template
-
-This script tests the main API endpoints:
-1. User registration
-2. User login
-3. Get current user
-4. List all users
-
-Usage:
-    python test.py
-
-Note: Make sure the FastAPI server is running on http://localhost:8000
+Simple API test script for the FastAPI backend.
+This script tests the main API endpoints with basic logging.
 """
 
 import requests
 import json
-import time
 
-# Configuration
-BASE_URL = "http://localhost:8000"
-API_PREFIX = "/users"
+# Note: Make sure the FastAPI server is running on http://localhost:8088
+BASE_URL = "http://localhost:8088"
+API_PREFIX = ""
 
-# Test data
+# Test user data
 TEST_USER = {
-    "name": "Test User",
-    "email": "test@example.com",
-    "password": "testpassword123"
+    "name": "API Test User",
+    "email": "api_test@example.com",
+    "password": "secure_test_password_123"
 }
 
-UPDATED_USER = {
-    "name": "Updated Test User"
-}
-
-def print_section_header(title):
+def print_section_header(section_name):
     """Print a section header"""
     print(f"\n{'='*50}")
-    print(f"{title}")
+    print(f"  {section_name}")
     print(f"{'='*50}")
 
-def print_result(endpoint, status, details=""):
-    """Print test result"""
-    status_icon = "✓" if status == "PASS" else "✗"
-    print(f"{status_icon} {endpoint:<30} {status} {details}")
+def print_result(test_name, status, details=""):
+    """Print a test result"""
+    print(f"  {status}: {test_name}" + (f" - {details}" if details else ""))
 
 def test_health_check():
     """Test the health check endpoint"""
@@ -50,12 +34,19 @@ def test_health_check():
     
     try:
         response = requests.get(f"{BASE_URL}/health")
-        if response.status_code == 200 and response.json().get("status") == "healthy":
-            print_result("GET /health", "PASS")
-            return True
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "healthy":
+                print_result("GET /health", "PASS")
+                return True
+            else:
+                print_result("GET /health", "FAIL", f"Unexpected response: {data}")
+                return False
         else:
-            print_result("GET /health", "FAIL", f"Status: {response.status_code}")
+            print_result("GET /health", "FAIL", f"Status code: {response.status_code}")
             return False
+            
     except requests.exceptions.ConnectionError:
         print_result("GET /health", "FAIL", "Connection refused")
         return False
@@ -68,36 +59,34 @@ def test_register_user():
     print_section_header("User Registration Test")
     
     try:
-        # First, try to delete the test user if it exists
-        # (This is just for demo purposes - a real API wouldn't have this)
-        
-        # Register a new user
         response = requests.post(
-            f"{BASE_URL}{API_PREFIX}/register",
+            f"{BASE_URL}{API_PREFIX}/users/register",
             json=TEST_USER
         )
         
         if response.status_code == 200:
             data = response.json()
-            if data.get("email") == TEST_USER["email"] and data.get("name") == TEST_USER["name"]:
+            if (data.get("name") == TEST_USER["name"] and 
+                data.get("email") == TEST_USER["email"]):
                 print_result("POST /users/register", "PASS")
-                return data  # Return user data including ID
+                return True
             else:
-                print_result("POST /users/register", "FAIL", "Unexpected response data")
-                return None
+                print_result("POST /users/register", "FAIL", f"Data mismatch: {data}")
+                return False
         elif response.status_code == 400:
             # User might already exist
             print_result("POST /users/register", "SKIP", "User may already exist")
-            return {"id": 0, "email": TEST_USER["email"], "name": TEST_USER["name"]}
+            return True
         else:
-            print_result("POST /users/register", "FAIL", f"Status: {response.status_code}")
-            return None
+            print_result("POST /users/register", "FAIL", f"Status code: {response.status_code}")
+            return False
+            
     except requests.exceptions.ConnectionError:
         print_result("POST /users/register", "FAIL", "Connection refused")
-        return None
+        return False
     except Exception as e:
         print_result("POST /users/register", "FAIL", f"Error: {str(e)}")
-        return None
+        return False
 
 def test_login_user():
     """Test user login endpoint"""
@@ -105,7 +94,7 @@ def test_login_user():
     
     try:
         response = requests.post(
-            f"{BASE_URL}{API_PREFIX}/login",
+            f"{BASE_URL}{API_PREFIX}/users/login",
             json={
                 "email": TEST_USER["email"],
                 "password": TEST_USER["password"]
@@ -114,15 +103,17 @@ def test_login_user():
         
         if response.status_code == 200:
             data = response.json()
-            if "access_token" in data and data.get("token_type") == "bearer":
+            if ("access_token" in data and 
+                data.get("token_type") == "bearer"):
                 print_result("POST /users/login", "PASS")
                 return data["access_token"]
             else:
-                print_result("POST /users/login", "FAIL", "Invalid token response")
+                print_result("POST /users/login", "FAIL", f"Invalid token response: {data}")
                 return None
         else:
-            print_result("POST /users/login", "FAIL", f"Status: {response.status_code}")
+            print_result("POST /users/login", "FAIL", f"Status code: {response.status_code}")
             return None
+            
     except requests.exceptions.ConnectionError:
         print_result("POST /users/login", "FAIL", "Connection refused")
         return None
@@ -137,7 +128,7 @@ def test_get_current_user(token):
     try:
         headers = {"Authorization": f"Bearer {token}"}
         response = requests.get(
-            f"{BASE_URL}{API_PREFIX}/me",
+            f"{BASE_URL}{API_PREFIX}/users/me",
             headers=headers
         )
         
@@ -150,8 +141,9 @@ def test_get_current_user(token):
                 print_result("GET /users/me", "FAIL", "User data mismatch")
                 return False
         else:
-            print_result("GET /users/me", "FAIL", f"Status: {response.status_code}")
+            print_result("GET /users/me", "FAIL", f"Status code: {response.status_code}")
             return False
+            
     except requests.exceptions.ConnectionError:
         print_result("GET /users/me", "FAIL", "Connection refused")
         return False
@@ -166,7 +158,7 @@ def test_list_users(token):
     try:
         headers = {"Authorization": f"Bearer {token}"}
         response = requests.get(
-            f"{BASE_URL}{API_PREFIX}/",
+            f"{BASE_URL}{API_PREFIX}/users/",
             headers=headers
         )
         
@@ -179,8 +171,9 @@ def test_list_users(token):
                 print_result("GET /users/", "FAIL", "Response is not a list")
                 return False
         else:
-            print_result("GET /users/", "FAIL", f"Status: {response.status_code}")
+            print_result("GET /users/", "FAIL", f"Status code: {response.status_code}")
             return False
+            
     except requests.exceptions.ConnectionError:
         print_result("GET /users/", "FAIL", "Connection refused")
         return False
@@ -189,47 +182,36 @@ def test_list_users(token):
         return False
 
 def main():
-    """Main test function"""
-    print("FastAPI Backend Template - API Testing Script")
-    print("=" * 50)
+    """Run all API tests"""
+    print("🚀 Starting Simple API Tests")
+    print(f"   Target: {BASE_URL}")
     
     # Test health check
     if not test_health_check():
-        print("\n⚠️  Health check failed. Make sure the server is running.")
-        return
+        return False
     
     # Test user registration
-    user_data = test_register_user()
-    if not user_data:
-        print("\n⚠️  User registration failed. Cannot proceed with other tests.")
-        return
-    
-    # Give the server a moment to process
-    time.sleep(1)
+    if not test_register_user():
+        return False
     
     # Test user login
     token = test_login_user()
     if not token:
-        print("\n⚠️  User login failed. Cannot proceed with authenticated tests.")
-        return
-    
-    # Give the server a moment to process
-    time.sleep(1)
+        return False
     
     # Test get current user
     if not test_get_current_user(token):
-        print("\n⚠️  Get current user test failed.")
-    
-    # Give the server a moment to process
-    time.sleep(1)
+        return False
     
     # Test list users
     if not test_list_users(token):
-        print("\n⚠️  List users test failed.")
+        return False
     
-    print("\n" + "=" * 50)
-    print("API Testing Complete")
-    print("=" * 50)
+    print(f"\n{'='*50}")
+    print("  🎉 All tests passed!")
+    print(f"{'='*50}")
+    return True
 
 if __name__ == "__main__":
-    main()
+    success = main()
+    exit(0 if success else 1)

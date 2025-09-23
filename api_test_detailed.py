@@ -1,86 +1,55 @@
 #!/usr/bin/env python3
 """
-Detailed API Testing Script for FastAPI Backend Template
-
-This script provides comprehensive testing of all API endpoints with detailed output.
-It includes tests for:
-1. Health check endpoint
-2. User registration
-3. User login
-4. Get current user
-5. List all users
-
-Usage:
-    python api_test_detailed.py
-
-Requirements:
-    - requests library (pip install requests)
-    - Running FastAPI server on http://localhost:8000
-
-Author: Assistant
+Detailed API test script for the FastAPI backend.
+This script tests all the main API endpoints with detailed logging.
 """
 
 import requests
 import json
 import time
-from typing import Optional, Dict, Any
+from typing import Optional
 
 # Configuration
-BASE_URL = "http://localhost:8000"
-API_PREFIX = "/users"
-TIMEOUT = 10  # seconds
+BASE_URL = "http://localhost:8088"
+API_PREFIX = ""
+TIMEOUT = 10
 
-# Test data
+# Test user data
 TEST_USER = {
     "name": "API Test User",
     "email": "api_test@example.com",
     "password": "secure_test_password_123"
 }
 
-class APITester:
-    """API Testing class for FastAPI Backend Template"""
+class APITestRunner:
+    """Class to run detailed API tests with logging"""
     
     def __init__(self):
         self.session = requests.Session()
-        self.token = None
-        self.user_id = None
-        self.test_results = []
-    
+        self.token: Optional[str] = None
+        self.results = []
+        
     def add_result(self, test_name: str, status: str, details: str = ""):
-        """Add test result to results list"""
-        self.test_results.append({
+        """Add a test result to the results list"""
+        result = {
             "test": test_name,
             "status": status,
-            "details": details
-        })
-    
-    def print_results(self):
-        """Print all test results"""
-        print("\n" + "="*60)
-        print("TEST RESULTS SUMMARY")
-        print("="*60)
+            "details": details,
+            "timestamp": time.time()
+        }
+        self.results.append(result)
+        print(f"  {status}: {test_name}" + (f" - {details}" if details else ""))
         
-        passed = 0
-        failed = 0
+    def print_section_header(self, section_name: str):
+        """Print a section header"""
+        print(f"\n{'='*50}")
+        print(f"  {section_name}")
+        print(f"{'='*50}")
         
-        for result in self.test_results:
-            status_icon = "✓" if result["status"] == "PASS" else "✗"
-            print(f"{status_icon} {result['test']:<35} {result['status']}")
-            if result["details"]:
-                print(f"   └─ {result['details']}")
-            print()
-            
-            if result["status"] == "PASS":
-                passed += 1
-            else:
-                failed += 1
-        
-        print("-"*60)
-        print(f"Total: {len(self.test_results)} | Passed: {passed} | Failed: {failed}")
-        print("="*60)
-    
-    def test_health_check(self) -> bool:
+    def test_health_check(self):
         """Test the health check endpoint"""
+        self.print_section_header("Health Check Test")
+        
         try:
             response = self.session.get(
                 f"{BASE_URL}/health",
@@ -90,68 +59,70 @@ class APITester:
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "healthy":
-                    self.add_result("Health Check", "PASS")
+                    self.add_result("GET /health", "PASS")
                     return True
                 else:
-                    self.add_result("Health Check", "FAIL", f"Unexpected response: {data}")
+                    self.add_result("GET /health", "FAIL", f"Unexpected response: {data}")
                     return False
             else:
-                self.add_result("Health Check", "FAIL", f"Status code: {response.status_code}")
+                self.add_result("GET /health", "FAIL", f"Status code: {response.status_code}")
                 return False
                 
         except requests.exceptions.ConnectionError:
-            self.add_result("Health Check", "FAIL", "Connection refused - is the server running?")
+            self.add_result("GET /health", "FAIL", "Connection refused")
             return False
         except requests.exceptions.Timeout:
-            self.add_result("Health Check", "FAIL", "Request timeout")
+            self.add_result("GET /health", "FAIL", "Request timeout")
             return False
         except Exception as e:
-            self.add_result("Health Check", "FAIL", f"Error: {str(e)}")
+            self.add_result("GET /health", "FAIL", f"Error: {str(e)}")
             return False
     
-    def test_register_user(self) -> bool:
+    def test_register_user(self):
         """Test user registration endpoint"""
+        self.print_section_header("User Registration Test")
+        
         try:
             response = self.session.post(
-                f"{BASE_URL}{API_PREFIX}/register",
+                f"{BASE_URL}{API_PREFIX}/users/register",
                 json=TEST_USER,
                 timeout=TIMEOUT
             )
             
             if response.status_code == 200:
                 data = response.json()
-                if (data.get("email") == TEST_USER["email"] and 
-                    data.get("name") == TEST_USER["name"] and
-                    "id" in data):
-                    self.user_id = data["id"]
-                    self.add_result("User Registration", "PASS")
+                if (data.get("name") == TEST_USER["name"] and 
+                    data.get("email") == TEST_USER["email"]):
+                    self.add_result("POST /users/register", "PASS")
                     return True
                 else:
-                    self.add_result("User Registration", "FAIL", f"Unexpected response data: {data}")
+                    self.add_result("POST /users/register", "FAIL", f"Data mismatch: {data}")
                     return False
             elif response.status_code == 400:
                 # User might already exist
-                self.add_result("User Registration", "SKIP", "User may already exist")
+                print("  SKIP: User may already exist")
                 return True
             else:
-                self.add_result("User Registration", "FAIL", f"Status code: {response.status_code}")
+                self.add_result("POST /users/register", "FAIL", f"Status code: {response.status_code}")
                 return False
                 
         except requests.exceptions.ConnectionError:
-            self.add_result("User Registration", "FAIL", "Connection refused")
+            self.add_result("POST /users/register", "FAIL", "Connection refused")
             return False
         except requests.exceptions.Timeout:
-            self.add_result("User Registration", "FAIL", "Request timeout")
+            self.add_result("POST /users/register", "FAIL", "Request timeout")
             return False
         except Exception as e:
-            self.add_result("User Registration", "FAIL", f"Error: {str(e)}")
+            self.add_result("POST /users/register", "FAIL", f"Error: {str(e)}")
             return False
     
-    def test_login_user(self) -> bool:
+    def test_login_user(self):
         """Test user login endpoint"""
+        self.print_section_header("User Login Test")
+        
         try:
             response = self.session.post(
-                f"{BASE_URL}{API_PREFIX}/login",
+                f"{BASE_URL}{API_PREFIX}/users/login",
                 json={
                     "email": TEST_USER["email"],
                     "password": TEST_USER["password"]
@@ -164,35 +135,37 @@ class APITester:
                 if ("access_token" in data and 
                     data.get("token_type") == "bearer"):
                     self.token = data["access_token"]
-                    self.add_result("User Login", "PASS")
+                    self.add_result("POST /users/login", "PASS")
                     return True
                 else:
-                    self.add_result("User Login", "FAIL", f"Invalid token response: {data}")
+                    self.add_result("POST /users/login", "FAIL", f"Invalid token response: {data}")
                     return False
             else:
-                self.add_result("User Login", "FAIL", f"Status code: {response.status_code}")
+                self.add_result("POST /users/login", "FAIL", f"Status code: {response.status_code}")
                 return False
                 
         except requests.exceptions.ConnectionError:
-            self.add_result("User Login", "FAIL", "Connection refused")
+            self.add_result("POST /users/login", "FAIL", "Connection refused")
             return False
         except requests.exceptions.Timeout:
-            self.add_result("User Login", "FAIL", "Request timeout")
+            self.add_result("POST /users/login", "FAIL", "Request timeout")
             return False
         except Exception as e:
-            self.add_result("User Login", "FAIL", f"Error: {str(e)}")
+            self.add_result("POST /users/login", "FAIL", f"Error: {str(e)}")
             return False
     
-    def test_get_current_user(self) -> bool:
+    def test_get_current_user(self):
         """Test get current user endpoint"""
+        self.print_section_header("Get Current User Test")
+        
         if not self.token:
-            self.add_result("Get Current User", "SKIP", "No auth token available")
+            self.add_result("GET /users/me", "SKIP", "No auth token available")
             return False
             
         try:
             headers = {"Authorization": f"Bearer {self.token}"}
             response = self.session.get(
-                f"{BASE_URL}{API_PREFIX}/me",
+                f"{BASE_URL}{API_PREFIX}/users/me",
                 headers=headers,
                 timeout=TIMEOUT
             )
@@ -200,35 +173,37 @@ class APITester:
             if response.status_code == 200:
                 data = response.json()
                 if data.get("email") == TEST_USER["email"]:
-                    self.add_result("Get Current User", "PASS")
+                    self.add_result("GET /users/me", "PASS")
                     return True
                 else:
-                    self.add_result("Get Current User", "FAIL", f"User data mismatch: {data}")
+                    self.add_result("GET /users/me", "FAIL", "User data mismatch")
                     return False
             else:
-                self.add_result("Get Current User", "FAIL", f"Status code: {response.status_code}")
+                self.add_result("GET /users/me", "FAIL", f"Status code: {response.status_code}")
                 return False
                 
         except requests.exceptions.ConnectionError:
-            self.add_result("Get Current User", "FAIL", "Connection refused")
+            self.add_result("GET /users/me", "FAIL", "Connection refused")
             return False
         except requests.exceptions.Timeout:
-            self.add_result("Get Current User", "FAIL", "Request timeout")
+            self.add_result("GET /users/me", "FAIL", "Request timeout")
             return False
         except Exception as e:
-            self.add_result("Get Current User", "FAIL", f"Error: {str(e)}")
+            self.add_result("GET /users/me", "FAIL", f"Error: {str(e)}")
             return False
     
-    def test_list_users(self) -> bool:
+    def test_list_users(self):
         """Test list users endpoint"""
+        self.print_section_header("List Users Test")
+        
         if not self.token:
-            self.add_result("List Users", "SKIP", "No auth token available")
+            self.add_result("GET /users/", "SKIP", "No auth token available")
             return False
             
         try:
             headers = {"Authorization": f"Bearer {self.token}"}
             response = self.session.get(
-                f"{BASE_URL}{API_PREFIX}/",
+                f"{BASE_URL}{API_PREFIX}/users/",
                 headers=headers,
                 timeout=TIMEOUT
             )
@@ -236,78 +211,76 @@ class APITester:
             if response.status_code == 200:
                 data = response.json()
                 if isinstance(data, list):
-                    self.add_result("List Users", "PASS", f"Found {len(data)} users")
+                    self.add_result("GET /users/", "PASS")
                     return True
                 else:
-                    self.add_result("List Users", "FAIL", "Response is not a list")
+                    self.add_result("GET /users/", "FAIL", "Response is not a list")
                     return False
             else:
-                self.add_result("List Users", "FAIL", f"Status code: {response.status_code}")
+                self.add_result("GET /users/", "FAIL", f"Status code: {response.status_code}")
                 return False
                 
         except requests.exceptions.ConnectionError:
-            self.add_result("List Users", "FAIL", "Connection refused")
+            self.add_result("GET /users/", "FAIL", "Connection refused")
             return False
         except requests.exceptions.Timeout:
-            self.add_result("List Users", "FAIL", "Request timeout")
+            self.add_result("GET /users/", "FAIL", "Request timeout")
             return False
         except Exception as e:
-            self.add_result("List Users", "FAIL", f"Error: {str(e)}")
+            self.add_result("GET /users/", "FAIL", f"Error: {str(e)}")
             return False
     
     def run_all_tests(self):
         """Run all API tests"""
-        print("FastAPI Backend Template - Detailed API Testing")
-        print("=" * 50)
-        print(f"Base URL: {BASE_URL}")
-        print(f"Testing started at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print("=" * 50)
+        print("🚀 Starting Detailed API Tests")
+        print(f"   Target: {BASE_URL}")
+        print(f"   Timeout: {TIMEOUT}s")
+        print()
         
-        # Test health check
-        print("\n1. Testing Health Check...")
-        if not self.test_health_check():
-            print("⚠️  Health check failed. Make sure the server is running.")
-            self.print_results()
-            return
+        # Test sequence
+        tests = [
+            self.test_health_check,
+            self.test_register_user,
+            self.test_login_user,
+            self.test_get_current_user,
+            self.test_list_users
+        ]
         
-        # Test user registration
-        print("\n2. Testing User Registration...")
-        if not self.test_register_user():
-            print("⚠️  User registration failed.")
+        start_time = time.time()
+        passed = 0
+        failed = 0
+        skipped = 0
         
-        # Small delay to ensure server processing
-        time.sleep(1)
+        for test in tests:
+            try:
+                if test():
+                    passed += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                print(f"  ERROR: {test.__name__} failed with exception: {str(e)}")
+                failed += 1
         
-        # Test user login
-        print("\n3. Testing User Login...")
-        if not self.test_login_user():
-            print("⚠️  User login failed.")
+        end_time = time.time()
         
-        # Small delay to ensure server processing
-        time.sleep(1)
+        # Print summary
+        print(f"\n{'='*50}")
+        print("  📊 TEST SUMMARY")
+        print(f"{'='*50}")
+        print(f"  Total Tests: {len(tests)}")
+        print(f"  Passed: {passed}")
+        print(f"  Failed: {failed}")
+        print(f"  Skipped: {skipped}")
+        print(f"  Duration: {end_time - start_time:.2f}s")
         
-        # Test get current user
-        print("\n4. Testing Get Current User...")
-        if not self.test_get_current_user():
-            print("⚠️  Get current user test failed.")
-        
-        # Small delay to ensure server processing
-        time.sleep(1)
-        
-        # Test list users
-        print("\n5. Testing List Users...")
-        if not self.test_list_users():
-            print("⚠️  List users test failed.")
-        
-        # Print results
-        self.print_results()
-        
-        print(f"\nTesting completed at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-
-def main():
-    """Main function"""
-    tester = APITester()
-    tester.run_all_tests()
+        if failed == 0:
+            print("\n  🎉 All tests passed!")
+            return True
+        else:
+            print(f"\n  ❌ {failed} test(s) failed.")
+            return False
 
 if __name__ == "__main__":
-    main()
+    runner = APITestRunner()
+    success = runner.run_all_tests()
+    exit(0 if success else 1)

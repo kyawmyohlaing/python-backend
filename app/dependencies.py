@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 # Since we're in the container and files are directly in /app, we import directly
 from database import get_db
-from models.user import User
+from models.user import User, UserRole
 from security import decode_access_token
 
 # OAuth2 scheme for JWT token
@@ -45,3 +45,44 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
         
     return user
+
+def require_role(required_role: UserRole):
+    """
+    Dependency to check if the current user has the required role.
+    
+    Args:
+        required_role (UserRole): The role required to access the endpoint
+        
+    Returns:
+        function: A dependency function that validates the user's role
+    """
+    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        # Compare role values as strings
+        if str(current_user.role) != required_role.value:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required role: {required_role.value}"
+            )
+        return current_user
+    return role_checker
+
+def require_any_role(required_roles: list[UserRole]):
+    """
+    Dependency to check if the current user has any of the required roles.
+    
+    Args:
+        required_roles (list[UserRole]): List of roles that can access the endpoint
+        
+    Returns:
+        function: A dependency function that validates the user's role
+    """
+    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        # Get role values as strings for comparison
+        role_values = [role.value for role in required_roles]
+        if str(current_user.role) not in role_values:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required roles: {role_values}"
+            )
+        return current_user
+    return role_checker

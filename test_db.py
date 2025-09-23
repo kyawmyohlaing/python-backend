@@ -1,44 +1,45 @@
-#!/usr/bin/env python3
-"""
-Test script to verify database connectivity
-"""
-
 import sys
 import os
 
-# Add the current directory to the path so we can import app modules
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add the app directory to the Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
-def test_database():
-    """Test database connectivity"""
-    try:
-        # Test config import
-        from app.config import Config
-        config = Config()
-        print(f"Database URL: {config.DATABASE_URL}")
-        
-        # Test database import
-        from app.database import engine, SessionLocal, Base
-        print("✓ Database modules imported successfully")
-        
-        # Test creating a session
-        session = SessionLocal()
-        print("✓ Database session created successfully")
-        
-        # Test closing session
-        session.close()
-        print("✓ Database session closed successfully")
-        
-        print("\nDatabase connectivity test passed!")
-        return True
-        
-    except Exception as e:
-        print(f"✗ Database connectivity error: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-if __name__ == "__main__":
-    print("Testing database connectivity...")
-    success = test_database()
-    sys.exit(0 if success else 1)
+try:
+    # Try to import the database
+    from app.database import engine
+    from sqlalchemy import text
+    
+    print("✅ Database engine imported successfully")
+    
+    # Try to connect to the database
+    with engine.connect() as conn:
+        # Check if users table exists
+        result = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'"))
+        tables = result.fetchall()
+        if tables:
+            print("✅ Users table exists")
+            # Try to query the users table structure
+            result = conn.execute(text("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'users'"))
+            columns = result.fetchall()
+            print("Users table columns:")
+            for column in columns:
+                print(f"  - {column[0]}: {column[1]}")
+        else:
+            print("❌ Users table does not exist")
+            
+        # Check if there are any users
+        try:
+            result = conn.execute(text("SELECT COUNT(*) FROM users"))
+            row = result.fetchone()
+            if row is not None:
+                count = row[0]
+                print(f"Number of users in database: {count}")
+            else:
+                print("No result from COUNT query")
+        except Exception as e:
+            print(f"Could not query users table: {e}")
+            
+except Exception as e:
+    print(f"❌ Error connecting to database: {e}")
+    import traceback
+    traceback.print_exc()

@@ -31,21 +31,21 @@ make test     # Run tests
 
 ### Register User
 ```bash
-curl -X POST http://localhost:8000/users/register \
+curl -X POST http://localhost:8088/users/register \
   -H "Content-Type: application/json" \
   -d '{"name":"John","email":"john@example.com","password":"pass123"}'
 ```
 
 ### Login
 ```bash
-curl -X POST http://localhost:8000/users/login \
+curl -X POST http://localhost:8088/users/login \
   -H "Content-Type: application/json" \
   -d '{"email":"john@example.com","password":"pass123"}'
 ```
 
 ### Access Protected Route
 ```bash
-curl http://localhost:8000/users/me \
+curl http://localhost:8088/users/me \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
@@ -64,6 +64,13 @@ docker-compose exec web alembic upgrade head
 docker-compose exec web bash
 ```
 
+## 🔐 Auth Flow
+1. `POST /users/register` - Create account
+2. `POST /users/login` - Get JWT token
+3. `GET /users/me` - Access with `Authorization: Bearer <token>`
+
+## 🧪 Test Examples
+
 ## 📁 Key Files
 - `app/main.py` - App entry point
 - `app/models/user.py` - User model
@@ -74,12 +81,7 @@ docker-compose exec web bash
 - `Dockerfile` - Production config
 - `requirements.txt` - Dependencies
 
-## 🗃️ Database
-- **Seeded User**: user@example.com / password123
-- **Migrations**: `app/migrations/versions/`
-- **Alembic**: Auto-runs on startup
-
-## 🔗 URLs
-- **API**: http://localhost:8000
-- **Docs**: http://localhost:8000/docs
-- **Redoc**: http://localhost:8000/redoc
+## 🌐 Access Points
+- **API**: http://localhost:8088
+- **Docs**: http://localhost:8088/docs
+- **Redoc**: http://localhost:8088/redoc

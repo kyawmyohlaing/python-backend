@@ -1,21 +1,25 @@
-# 📄 FastAPI Backend Template - Printable Cheat Sheet
+# 🚀 FastAPI Backend - Printable Cheat Sheet
 
----
-
-## ⚡ Quick Start
-```
+## 🏁 Getting Started
+```bash
+# Setup
 cp .env.example .env
 make dev
+
+# Test with example user
+# Email: user@example.com
+# Password: password123
 ```
 
-## 🚀 Main Commands
-| Command | Action |
-|---------|--------|
-| `make dev` | Start development |
-| `make prod` | Start production |
-| `make down` | Stop containers |
-| `make logs` | View logs |
-| `make test` | Run tests |
+## 🛠️ Development Commands
+```bash
+make dev      # Development (hot reload)
+make prod     # Production (Gunicorn)
+make down     # Stop containers
+make logs     # View logs
+make migrate  # Run migrations
+make test     # Run tests
+```
 
 ## 🔐 Auth Flow
 1. `POST /users/register` - Create account
@@ -24,54 +28,59 @@ make dev
 
 ## 🧪 Test Examples
 
-### Register
-```
-curl -X POST http://localhost:8000/users/register \
+### Register User
+```bash
+curl -X POST http://localhost:8088/users/register \
   -H "Content-Type: application/json" \
   -d '{"name":"John","email":"john@example.com","password":"pass123"}'
 ```
 
 ### Login
-```
-curl -X POST http://localhost:8000/users/login \
+```bash
+curl -X POST http://localhost:8088/users/login \
   -H "Content-Type: application/json" \
   -d '{"email":"john@example.com","password":"pass123"}'
 ```
 
-### Access Protected
-```
-curl http://localhost:8000/users/me \
-  -H "Authorization: Bearer YOUR_TOKEN"
+### Access Protected Route
+```bash
+curl http://localhost:8088/users/me \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
-## 🐳 Docker
-```
-# Start
+## 🐳 Docker Commands
+```bash
+# Build and start
 docker-compose up --build
 
 # Stop
 docker-compose down
 
-# Migrate
+# Run migrations
 docker-compose exec web alembic upgrade head
+
+# Access container
+docker-compose exec web bash
 ```
 
-## 📂 Key Endpoints
-- `POST /users/register` - Register user
-- `POST /users/login` - Login user
-- `GET /users/me` - Get current user
-- `GET /users/` - List all users
+## 📁 Key Files
+- `app/main.py` - App entry point
+- `app/models/user.py` - User model
+- `app/schemas/user_schema.py` - Data validation
+- `app/services/user_service.py` - Business logic
+- `app/routes/user_routes.py` - API endpoints
+- `app/security.py` - Auth functions
+- `Dockerfile` - Production config
+- `requirements.txt` - Dependencies
 
-## 🗃️ Example User
+## 🔧 Environment Variables
+```env
+SECRET_KEY=your-secret-key
+DATABASE_URL=postgresql://user:pass@localhost:5432/db
+ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```
-Email: user@example.com
-Password: password123
-```
 
-## 🔗 URLs
-- API: http://localhost:8000
-- Docs: http://localhost:8000/docs
-
----
-
-*Keep this handy while developing!*
+## 🌐 API Access
+- API: `http://localhost:8088`
+- Docs: `http://localhost:8088/docs`
+- Redoc: `http://localhost:8088/redoc`

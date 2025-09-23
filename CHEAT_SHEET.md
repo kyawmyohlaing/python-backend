@@ -1,30 +1,36 @@
-# ⚡ FastAPI Backend Template Cheat Sheet
+# 🚀 FastAPI Backend Cheat Sheet
 
-## 🚀 Quick Command Reference
+## 🏁 Quick Start
 
-### Makefile Commands
-| Command        | Purpose                                        |
-| -------------- | ---------------------------------------------- |
-| `make dev`     | Start development (Uvicorn + hot reload)       |
-| `make prod`    | Start production (Gunicorn workers)            |
-| `make down`    | Stop all containers                            |
-| `make logs`    | Tail web container logs                        |
-| `make migrate` | Run Alembic migrations manually                |
-| `make test`    | Run all tests                                  |
+```bash
+# Setup
+cp .env.example .env
+make dev
 
-### Docker Commands
-| Command                                                                      | Description                |
-| ---------------------------------------------------------------------------- | -------------------------- |
-| `docker-compose up --build`                                                  | Build and start containers |
-| `docker-compose down`                                                        | Stop containers            |
-| `docker-compose down -v`                                                     | Stop and remove volumes    |
-| `docker-compose exec web alembic -c app/migrations/alembic.ini upgrade head` | Apply migrations           |
-| `docker-compose logs web`                                                    | View web service logs      |
-| `docker-compose exec web bash`                                               | Access web container shell |
+# Or with Docker
+docker-compose up --build
+```
 
-## 🔐 API Routes
+## 🔧 Development Commands
 
-### User Registration
+| Command | Description |
+|---------|-------------|
+| `make dev` | Start development server |
+| `make prod` | Start production server |
+| `make test` | Run all tests |
+| `make migrate` | Run database migrations |
+| `make logs` | View application logs |
+| `make clean` | Clean temporary files |
+
+## 🌐 API Access
+
+- API: `http://localhost:8088`
+- Docs: `http://localhost:8088/docs`
+- Redoc: `http://localhost:8088/redoc`
+
+## 🔐 Authentication
+
+### Register New User
 ```
 POST /users/register
 ```
@@ -33,11 +39,19 @@ POST /users/register
 {
   "name": "John Doe",
   "email": "john@example.com",
-  "password": "password123"
+  "password": "securepassword"
+}
+```
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "John Doe",
+  "email": "john@example.com"
 }
 ```
 
-### User Login
+### Login
 ```
 POST /users/login
 ```
@@ -45,7 +59,7 @@ POST /users/login
 ```json
 {
   "email": "john@example.com",
-  "password": "password123"
+  "password": "securepassword"
 }
 ```
 **Response:**
@@ -87,17 +101,24 @@ Authorization: Bearer <access_token>
 ### With cURL
 ```bash
 # Register
-curl -X POST http://localhost:8000/users/register \
+curl -X POST http://localhost:8088/users/register \
   -H "Content-Type: application/json" \
-  -d '{"name": "John Doe", "email": "john@example.com", "password": "password123"}'
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "securepassword"
+  }'
 
 # Login
-curl -X POST http://localhost:8000/users/login \
+curl -X POST http://localhost:8088/users/login \
   -H "Content-Type: application/json" \
-  -d '{"email": "john@example.com", "password": "password123"}'
+  -d '{
+    "email": "john@example.com",
+    "password": "securepassword"
+  }'
 
 # Get current user (replace TOKEN with actual token)
-curl http://localhost:8000/users/me \
+curl http://localhost:8088/users/me \
   -H "Authorization: Bearer TOKEN"
 ```
 
@@ -106,77 +127,71 @@ curl http://localhost:8000/users/me \
 import requests
 
 # Register
-response = requests.post('http://localhost:8000/users/register', json={
+response = requests.post('http://localhost:8088/users/register', json={
     'name': 'John Doe',
     'email': 'john@example.com',
-    'password': 'password123'
+    'password': 'securepassword'
 })
 
 # Login
-response = requests.post('http://localhost:8000/users/login', json={
+response = requests.post('http://localhost:8088/users/login', json={
     'email': 'john@example.com',
-    'password': 'password123'
+    'password': 'securepassword'
 })
 token = response.json()['access_token']
 
 # Get current user
 headers = {'Authorization': f'Bearer {token}'}
-response = requests.get('http://localhost:8000/users/me', headers=headers)
+response = requests.get('http://localhost:8088/users/me', headers=headers)
 ```
 
-## 🗃️ Database & Migrations
+## 🐳 Docker Commands
 
-### Alembic Commands
 ```bash
-# Create new migration
-docker-compose exec web alembic -c app/migrations/alembic.ini revision --autogenerate -m "Description"
+# Development (with hot reload)
+docker-compose up
 
-# Apply migrations
-docker-compose exec web alembic -c app/migrations/alembic.ini upgrade head
+# Production
+docker-compose -f docker-compose.yml up
 
-# Check current revision
-docker-compose exec web alembic -c app/migrations/alembic.ini current
+# Stop services
+docker-compose down
 
-# View migration history
-docker-compose exec web alembic -c app/migrations/alembic.ini history
+# View logs
+docker-compose logs
+
+# Run migrations
+docker-compose exec web alembic upgrade head
+
+# Access container shell
+docker-compose exec web bash
 ```
 
-## 🐳 Environment
+## 📁 Project Structure
 
-### Seeded Example User
 ```
-Email: user@example.com
-Password: password123
-```
-
-### Key URLs
-- API: `http://localhost:8000`
-- Docs: `http://localhost:8000/docs`
-- Redoc: `http://localhost:8000/redoc`
-
-## 🛠️ Development
-
-### Project Structure
-```
-fastapi-backend-template/
-├── app/
-│   ├── models/     # Database models
-│   ├── schemas/    # Pydantic schemas
-│   ├── services/   # Business logic
-│   ├── routes/     # API endpoints
-│   └── migrations/ # Database migrations
-├── tests/          # Test suite
-├── Dockerfile      # Production Docker config
-└── docker-compose.yml  # Services config
+app/
+├── main.py          # Application entry point
+├── config.py        # Configuration management
+├── database.py      # Database connection setup
+├── security.py      # Authentication and password hashing
+├── models/          # Database models (SQLAlchemy)
+├── schemas/         # Data validation models (Pydantic)
+├── routes/          # API endpoints (FastAPI)
+├── services/        # Business logic
+├── utils/           # Utility functions
+├── migrations/      # Database migration scripts
+tests/               # Unit and integration tests
 ```
 
-### Key Files
-- `app/main.py` - Application entry point
-- `app/database.py` - Database configuration
-- `app/security.py` - Authentication & security
-- `requirements.txt` - Python dependencies
-- `Makefile` - Development commands
-- `.env.example` - Environment variables template
+## 🛠️ Environment Variables
+
+Create a `.env` file with:
+```env
+SECRET_KEY=your-secret-key-here
+DATABASE_URL=postgresql://postgres:password@localhost:5432/mydb
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+```
 
 ## 🔧 Troubleshooting
 
@@ -188,6 +203,9 @@ fastapi-backend-template/
 
 ### Reset Database
 ```bash
-make down -v  # Remove volumes
-make dev      # Recreate everything
+# Stop services
+docker-compose down -v
+
+# Start fresh
+docker-compose up --build
 ```

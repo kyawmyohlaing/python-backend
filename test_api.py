@@ -7,6 +7,26 @@ This script tests the /register, /login, and /me endpoints.
 import requests
 import json
 
+# Base URL for the API
+BASE_URL = "http://localhost:8088"
+
+def test_register_user():
+    """Test registering a new user"""
+    try:
+        print("Testing user registration...")
+        response = requests.post(f"{BASE_URL}/users/register", json={
+            "name": "Test User",
+            "email": "test@example.com",
+            "password": "testpassword",
+            "role": "waiter"
+        }, timeout=10)
+        print(f"Status Code: {response.status_code}")
+        print(f"Response: {response.text}")
+        return response
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
 # Test creating an order
 order_data = {
     "order": [
@@ -142,4 +162,5 @@ def main():
         print("Failed to register new user")
 
 if __name__ == "__main__":
+    test_register_user()
     main()

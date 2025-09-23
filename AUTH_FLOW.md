@@ -74,25 +74,34 @@ graph TD
    - JWT token is generated with user ID
    - System returns access token and token type
 
-### 3. JWT Token Usage
+## 🧪 Testing with cURL
 
-1. **Token Structure**: 
-   - Header: Algorithm and token type
-   - Payload: User ID and expiration time
-   - Signature: Secret key-signed hash
-2. **Usage**:
-   - Client includes in Authorization header
-   - Format: `Bearer <access_token>`
-   - Server validates token on each request
+### Register a New User
+```bash
+curl -X POST http://localhost:8088/users/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "securepassword"
+  }'
+```
 
-### 4. Accessing Protected Routes
+### Login
+```bash
+curl -X POST http://localhost:8088/users/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john@example.com",
+    "password": "securepassword"
+  }'
+```
 
-1. **Process**:
-   - User includes JWT token in request header
-   - Server validates token signature
-   - Server extracts user ID from token payload
-   - Server retrieves user information from database
-   - Request is processed if token is valid
+### Access Protected Route
+```bash
+curl http://localhost:8088/users/me \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE"
+```
 
 ## 🔧 Technical Details
 
@@ -132,43 +141,3 @@ def login_user(credentials: UserLogin, db: Session = Depends(get_db)):
 def read_current_user(current_user = Depends(get_current_user)):
     # Implementation
 ```
-
-## 🧪 Example Requests
-
-### Registration
-```bash
-curl -X POST http://localhost:8000/users/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "John Doe",
-    "email": "john@example.com",
-    "password": "password123"
-  }'
-```
-
-### Login
-```bash
-curl -X POST http://localhost:8000/users/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "john@example.com",
-    "password": "password123"
-  }'
-```
-
-### Access Protected Route
-```bash
-curl http://localhost:8000/users/me \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
-```
-
-## 🛡️ Security Considerations
-
-1. **Never store plain text passwords**
-2. **Use HTTPS in production**
-3. **Validate all user inputs**
-4. **Implement rate limiting**
-5. **Use strong secret keys**
-6. **Set appropriate token expiration**
-7. **Log security events**
-8. **Regularly update dependencies**

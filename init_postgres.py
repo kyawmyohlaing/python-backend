@@ -10,10 +10,17 @@ import sys
 # Add the app directory to the Python path
 sys.path.insert(0, '/app')
 
-# Import the models directly
-from database import Base
-from models.menu import MenuItem
-from models.user import User
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.module (local development)
+    from app.database import Base
+    from app.models.menu import MenuItem
+    from app.models.user import User, UserRole
+except ImportError:
+    # Try importing directly (Docker container)
+    from database import Base
+    from models.menu import MenuItem
+    from models.user import User, UserRole
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -67,21 +74,58 @@ def init_database():
         # Check if we have any users
         existing_users = db.query(User).count()
         if existing_users == 0:
-            print("Adding sample user...")
+            print("Adding sample users with different roles...")
             # Add a sample user (in a real application, you'd want to hash the password)
             from passlib.context import CryptContext
             pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
             
-            sample_user = User(
+            # Admin user
+            admin_user = User(
                 username="admin",
                 email="admin@example.com",
                 hashed_password=pwd_context.hash("admin123"),
-                role="admin"
+                role=UserRole.ADMIN
             )
             
-            db.add(sample_user)
+            # Waiter user
+            waiter_user = User(
+                username="waiter",
+                email="waiter@example.com",
+                hashed_password=pwd_context.hash("waiter123"),
+                role=UserRole.WAITER
+            )
+            
+            # Cashier user
+            cashier_user = User(
+                username="cashier",
+                email="cashier@example.com",
+                hashed_password=pwd_context.hash("cashier123"),
+                role=UserRole.CASHIER
+            )
+            
+            # Manager user
+            manager_user = User(
+                username="manager",
+                email="manager@example.com",
+                hashed_password=pwd_context.hash("manager123"),
+                role=UserRole.MANAGER
+            )
+            
+            # Chef user
+            chef_user = User(
+                username="chef",
+                email="chef@example.com",
+                hashed_password=pwd_context.hash("chef123"),
+                role=UserRole.CHEF
+            )
+            
+            sample_users = [admin_user, waiter_user, cashier_user, manager_user, chef_user]
+            
+            for user in sample_users:
+                db.add(user)
+            
             db.commit()
-            print("Sample user added successfully.")
+            print("Sample users with different roles added successfully.")
         else:
             print(f"Database already contains {existing_users} users. Skipping user insertion.")
         

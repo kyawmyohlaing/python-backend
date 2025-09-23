@@ -14,6 +14,9 @@ except ImportError:
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
     WAITER = "waiter"
+    CASHIER = "cashier"
+    MANAGER = "manager"
+    CHEF = "chef"
     KITCHEN = "kitchen"
     BAR = "bar"
 
@@ -26,6 +29,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     role = Column(Enum(UserRole))
+    progress = Column(String, default="{}")
 
     # Relationship with orders (a user can create multiple orders)
     orders = relationship("Order", back_populates="created_by_user", lazy="select")

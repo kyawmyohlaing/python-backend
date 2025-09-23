@@ -1,5 +1,7 @@
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
 # Import models first to ensure they are registered with the Base
 # Import models in correct order to avoid circular dependencies
@@ -7,7 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 try:
     # Try importing from app.module (local development)
     from app.models import user, menu, order, order_item, invoice, kitchen, table, stock
-    from app.routes import user_router, menu_router, order_router, table_router, invoice_router
+    # Import the updated router
+    from app.routes.user_routes import router as user_router
+    from app.routes.menu_routes import router as menu_router
+    from app.routes.order_routes import router as order_router
+    from app.routes.table_routes import router as table_router
+    from app.routes.invoice_routes import router as invoice_router
     from app.routes.kitchen_routes_db import router as kitchen_router
     from app.routes.stock_routes import router as stock_router
     from app.database import Base, engine
@@ -16,7 +23,11 @@ except ImportError:
     # Try importing directly (Docker container)
     try:
         from models import user, menu, order, order_item, invoice, kitchen, table, stock
-        from routes import user_router, menu_router, order_router, table_router, invoice_router
+        from routes.user_routes import router as user_router
+        from routes.menu_routes import router as menu_router
+        from routes.order_routes import router as order_router
+        from routes.table_routes import router as table_router
+        from routes.invoice_routes import router as invoice_router
         from routes.kitchen_routes_db import router as kitchen_router
         from routes.stock_routes import router as stock_router
         from database import Base, engine
@@ -40,6 +51,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routers - the routers already have their prefixes defined
 app.include_router(user_router)
 app.include_router(menu_router)
 app.include_router(order_router)
@@ -55,3 +67,16 @@ def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+if __name__ == "__main__":
+    # Get port from environment variable or default to 8088
+    port = int(os.getenv("PORT", 8088))
+    host = os.getenv("HOST", "0.0.0.0")
+    
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        reload=True,
+        log_level="info"
+    )

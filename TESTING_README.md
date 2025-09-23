@@ -1,42 +1,52 @@
-# API Testing Guide
+# Testing Guide
 
-This guide explains how to use the API testing scripts provided with the FastAPI Backend Template.
+This document provides information about the testing setup and how to run tests for the FastAPI backend.
 
-## 📋 Available Test Scripts
+## 🧪 Test Suite Overview
 
-1. **[test.py](file:///c%3A/strategy_test/PythonLearning/python_backend_structure/test.py)** - A simple API test script
-2. **[api_test_detailed.py](file:///c%3A/strategy_test/PythonLearning/python_backend_structure/api_test_detailed.py)** - A comprehensive test script with detailed output
-3. **[run_test.bat](file:///c%3A/strategy_test/PythonLearning/python_backend_structure/run_test.bat)** - Windows batch file to run the simple test
-4. **[run_test.sh](file:///c%3A/strategy_test/PythonLearning/python_backend_structure/run_test.sh)** - Shell script to run the simple test
+The test suite includes both unit tests and integration tests to ensure the application functions correctly.
 
-## 🚀 Prerequisites
+### Unit Tests
+- Test individual functions and methods
+- Mock external dependencies
+- Focus on business logic
 
-1. Make sure the FastAPI server is running on `http://localhost:8000`
-2. The `requests` Python library should be installed:
-   ```bash
-   pip install requests
-   ```
+### Integration Tests
+- Test API endpoints
+- Test database interactions
+- Test end-to-end workflows
 
-## ▶️ Running the Tests
+## 🏃 Running Tests
 
-### Option 1: Simple Test Script
+### Prerequisites
+1. Make sure the FastAPI server is running on `http://localhost:8088`
+2. Ensure the database is accessible
+
+### Running All Tests
 ```bash
-# On Windows
-python test.py
+# Using Makefile
+make test
 
-# Or use the batch file
-run_test.bat
+# Direct command
+pytest
 
-# On Linux/Mac
-python test.py
-
-# Or use the shell script
-./run_test.sh
+# With Docker
+docker-compose exec web pytest
 ```
 
-### Option 2: Detailed Test Script
+### Running Specific Tests
 ```bash
-python api_test_detailed.py
+# Run a specific test file
+pytest tests/test_users.py
+
+# Run tests with a specific keyword
+pytest -k "user"
+
+# Run tests with verbose output
+pytest -v
+
+# Run tests with coverage
+pytest --cov=app --cov-report=html
 ```
 
 ## 🧪 What the Tests Cover
@@ -60,50 +70,119 @@ The tests use the following test user data:
 }
 ```
 
-Note: The test scripts are designed to be run multiple times without causing conflicts.
+## 🛠️ Test Configuration
 
-## 🛠️ Customization
+### Environment Variables
+Tests use the following environment variables:
+- `TEST_DATABASE_URL` - Database URL for testing
+- `TEST_SECRET_KEY` - Secret key for testing
 
-You can modify the test scripts to:
+### Test Database
+Tests can run against:
+- SQLite in-memory database (for unit tests)
+- PostgreSQL database (for integration tests)
 
-1. Change the base URL by modifying the `BASE_URL` variable
-2. Use different test user data by modifying the `TEST_USER` dictionary
-3. Add additional test cases for other endpoints
-4. Adjust timeout values in the detailed test script
+## 📊 Test Reports
 
-## 📊 Test Output
-
-The simple test script provides basic pass/fail information, while the detailed test script provides:
-
-- Detailed error messages
-- Test execution summary
-- Number of passed/failed tests
-- Timing information
-
-## ⚠️ Troubleshooting
-
-### Server Not Running
-If you get connection errors, make sure the FastAPI server is running:
+### Generating Coverage Reports
 ```bash
-# If using Docker
-docker-compose up
+# Generate coverage report
+pytest --cov=app
 
-# If running directly
-uvicorn app.main:app --reload
+# Generate HTML coverage report
+pytest --cov=app --cov-report=html
+
+# Generate XML coverage report
+pytest --cov=app --cov-report=xml
 ```
 
-### Permission Issues
-On Linux/Mac, make sure the shell script is executable:
+### Viewing Coverage Reports
 ```bash
-chmod +x run_test.sh
+# Open HTML coverage report
+open htmlcov/index.html
 ```
 
-### Missing Dependencies
-If you get import errors, install the required dependencies:
+## 🐛 Debugging Tests
+
+### Verbose Output
 ```bash
-pip install requests
+# Run tests with verbose output
+pytest -v
+
+# Run tests with extra verbose output
+pytest -vv
+
+# Show print statements
+pytest -s
 ```
 
-## 🧪 Integration with CI/CD
+### Debugging Specific Tests
+```bash
+# Run a single test
+pytest tests/test_users.py::test_user_registration
 
-These test scripts can be integrated into CI/CD pipelines to automatically verify API functionality during deployment processes.
+# Run tests in a class
+pytest tests/test_users.py::TestUserAPI
+```
+
+### Using pdb Debugger
+```bash
+# Run tests with debugger
+pytest --pdb
+
+# Run tests with debugger on first failure
+pytest --pdb-trace
+```
+
+## 🧼 Test Cleanup
+
+### Cleaning Test Data
+Tests should clean up after themselves, but you can also:
+
+1. **Reset the database:**
+   ```bash
+   # With Docker
+   docker-compose down -v
+   docker-compose up --build
+   ```
+
+2. **Run migrations:**
+   ```bash
+   # With Docker
+   docker-compose exec web alembic upgrade head
+   ```
+
+## 📈 Continuous Integration
+
+### GitHub Actions
+The project includes GitHub Actions workflows for:
+- Running tests on push and pull requests
+- Checking code quality
+- Building Docker images
+
+### Test Matrix
+Tests run against multiple Python versions:
+- Python 3.9
+- Python 3.10
+- Python 3.11
+
+## 🤖 Automated Testing
+
+### Test Runner Script
+The project includes a test runner script that:
+- Sets up the test environment
+- Runs all tests
+- Generates reports
+- Cleans up after testing
+
+### Scheduled Tests
+Tests can be scheduled to run:
+- Daily
+- Weekly
+- On deployment
+
+## 📚 Additional Resources
+
+- [Pytest Documentation](https://docs.pytest.org/)
+- [FastAPI Testing Guide](https://fastapi.tiangolo.com/tutorial/testing/)
+- [SQLAlchemy Testing Guide](https://docs.sqlalchemy.org/en/latest/orm/session_basics.html#session-faq-whentocreate)
