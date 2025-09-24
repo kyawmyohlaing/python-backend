@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from enum import Enum
+from datetime import datetime
 
 # Handle imports for both local development and Docker container environments
 try:
@@ -14,13 +15,17 @@ class UserCreate(BaseModel):
     username: str  # Changed from name to username to match model
     email: EmailStr
     password: str
+    full_name: Optional[str] = None
     role: UserRole = UserRole.WAITER  # Default role
 
 class UserResponse(BaseModel):
     id: int
     username: str  # Changed from name to username to match model
     email: EmailStr
+    full_name: Optional[str] = None
     role: UserRole
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -47,6 +52,7 @@ class TokenData(BaseModel):
 class UserUpdate(BaseModel):
     username: Optional[str] = Field(default=None)  # Changed from name to username to match model
     email: Optional[EmailStr] = Field(default=None)
+    full_name: Optional[str] = Field(default=None)
     role: Optional[UserRole] = Field(default=None)
 
 class ProgressUpdate(BaseModel):

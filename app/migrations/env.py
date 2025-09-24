@@ -62,6 +62,27 @@ target_metadata = Base.metadata
 # ... etc.
 
 
+def get_database_url():
+    """Get the appropriate database URL based on environment"""
+    # Check if we're running in Docker
+    is_in_docker = os.path.exists('/.dockerenv') or 'python_backend_structure-web' in os.getenv('HOSTNAME', '')
+    
+    # Get database URL from environment variable
+    database_url = os.getenv('DATABASE_URL')
+    
+    if database_url:
+        # If we're in Docker, ensure we're using the 'db' service name
+        if is_in_docker:
+            database_url = database_url.replace('127.0.0.1', 'db').replace('localhost', 'db')
+        return database_url
+    
+    # Fallback URLs
+    if is_in_docker:
+        return 'postgresql://postgres:password@db:5432/mydb'
+    else:
+        return 'postgresql://postgres:password@localhost:5432/mydb'
+
+
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
 
@@ -74,33 +95,7 @@ def run_migrations_offline():
     script output.
 
     """
-    # Import the Config class and get database URL properly
-    # Handle imports for both local development and Docker container environments
-    try:
-        # Try importing from config directly (Docker container)
-        from config import Config
-    except ImportError:
-        try:
-            # Try importing from app.config (local development)
-            from app.config import Config
-        except ImportError:
-            # Fallback to environment variable
-            import os
-            database_url = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/mydb')
-            url = database_url
-            context.configure(
-                url=url,
-                target_metadata=target_metadata,
-                literal_binds=True,
-                dialect_opts={"paramstyle": "named"},
-            )
-
-            with context.begin_transaction():
-                context.run_migrations()
-            return
-    
-    app_config = Config()
-    database_url = app_config.DATABASE_URL or "postgresql://postgres:password@localhost:5432/mydb"
+    database_url = get_database_url()
     
     url = database_url
     context.configure(
@@ -121,42 +116,7 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
-    # Import the Config class and get database URL properly
-    # Handle imports for both local development and Docker container environments
-    try:
-        # Try importing from config directly (Docker container)
-        from config import Config
-    except ImportError:
-        try:
-            # Try importing from app.config (local development)
-            from app.config import Config
-        except ImportError:
-            # Fallback to environment variable
-            import os
-            database_url = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/mydb')
-            config.set_main_option('sqlalchemy.url', database_url)
-            
-            # Get the configuration section, providing an empty dict as fallback
-            configuration = config.get_section(config.config_ini_section) or {}
-            configuration["sqlalchemy.url"] = database_url
-            
-            connectable = engine_from_config(
-                configuration,
-                prefix="sqlalchemy.",
-                poolclass=pool.NullPool,
-            )
-
-            with connectable.connect() as connection:
-                context.configure(
-                    connection=connection, target_metadata=target_metadata
-                )
-
-                with context.begin_transaction():
-                    context.run_migrations()
-            return
-    
-    app_config = Config()
-    database_url = app_config.DATABASE_URL or "postgresql://postgres:password@localhost:5432/mydb"
+    database_url = get_database_url()
     config.set_main_option('sqlalchemy.url', database_url)
     
     # Get the configuration section, providing an empty dict as fallback

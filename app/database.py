@@ -26,11 +26,15 @@ except ImportError:
         DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/mydb')
 
 # When running in Docker, we need to use the service name 'db' instead of 'localhost'
-# Check if we're running in Docker by checking for the .dockerenv file
+# Check if we're running in Docker by checking for the .dockerenv file or specific environment variables
 import os
-if os.path.exists('/.dockerenv'):
-    # We're in Docker, replace localhost with db service name
-    DATABASE_URL = DATABASE_URL.replace('localhost', 'db')
+
+# Check if we're in the Docker web container by checking for the DATABASE_URL environment variable
+# and if it contains localhost or 127.0.0.1, we replace it with 'db'
+env_database_url = os.getenv('DATABASE_URL')
+if env_database_url and ('localhost' in env_database_url or '127.0.0.1' in env_database_url):
+    DATABASE_URL = env_database_url.replace('127.0.0.1', 'db').replace('localhost', 'db')
+    logger.info(f"Updated DATABASE_URL for Docker environment: {DATABASE_URL}")
 
 logger.info(f"Connecting to database: {DATABASE_URL}")
 

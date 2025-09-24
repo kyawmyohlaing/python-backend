@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 import json
 import logging
+from datetime import datetime
 
 # Handle imports for both local development and Docker container environments
 try:
@@ -39,7 +40,10 @@ class UserService:
                 email=user.email,
                 hashed_password=hashed_password,
                 progress=progress_json,
-                role=user.role
+                role=user.role,
+                full_name=user.full_name,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
             )
             
             db.add(db_user)
@@ -79,6 +83,9 @@ class UserService:
             return None
             
         update_data = user_update.dict(exclude_unset=True)
+        # Add updated_at timestamp when updating
+        update_data['updated_at'] = datetime.utcnow()
+        
         for key, value in update_data.items():
             setattr(db_user, key, value)
             

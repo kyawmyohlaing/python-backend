@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Enum
+from sqlalchemy import Column, Integer, String, Enum, DateTime
 from sqlalchemy.orm import relationship
+from datetime import datetime
 import enum
 
 # Handle imports for both local development and Docker container environments
@@ -28,8 +29,12 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-    role = Column(Enum(UserRole))
+    # Fix the enum handling to properly map database values to Python enum
+    role = Column(Enum(UserRole, values_callable=lambda x: [e.value for e in x], native_enum=False))
     progress = Column(String, default="{}")
+    full_name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationship with orders (a user can create multiple orders)
     orders = relationship("Order", back_populates="created_by_user", lazy="select")

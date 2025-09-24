@@ -8,6 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-mydb}
+      POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -18,7 +19,8 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:password@db:5432/mydb}
+      # When running in Docker, use 'db' as the hostname
+      DATABASE_URL: postgresql://postgres:password@db:5432/mydb
       SECRET_KEY: ${SECRET_KEY}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       ENVIRONMENT: ${ENVIRONMENT:-development}

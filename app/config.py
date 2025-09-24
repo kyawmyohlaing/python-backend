@@ -16,11 +16,13 @@ class Config:
     # Database settings (example values)
     # Primary PostgreSQL database
     # When running in Docker, we need to use the service name 'db' instead of 'localhost'
-    # Check if we're running in Docker by checking for the .dockerenv file
+    # Check if we're running in Docker by checking for the .dockerenv file or specific environment variables
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb")
-    if os.path.exists('/.dockerenv'):
-        # We're in Docker, replace localhost with db service name
-        DATABASE_URL = DATABASE_URL.replace('localhost', 'db')
+    # Check if we're in Docker by checking for the .dockerenv file or specific environment variables
+    is_in_docker_container = os.path.exists('/.dockerenv') or 'HOSTNAME' in os.environ
+    if is_in_docker_container:
+        # We're in Docker, replace localhost/127.0.0.1 with db service name
+        DATABASE_URL = DATABASE_URL.replace('127.0.0.1', 'db').replace('localhost', 'db')
     
     DATABASE_POOL_SIZE: int = int(os.getenv("DATABASE_POOL_SIZE", "10"))
     
@@ -43,25 +45,31 @@ class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG: bool = True
     DATABASE_URL: str = os.getenv("DEV_DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb")
-    if os.path.exists('/.dockerenv'):
-        # We're in Docker, replace localhost with db service name
-        DATABASE_URL = DATABASE_URL.replace('localhost', 'db')
+    # Check if we're in Docker by checking for the .dockerenv file or specific environment variables
+    is_in_docker_container = os.path.exists('/.dockerenv') or 'HOSTNAME' in os.environ
+    if is_in_docker_container:
+        # We're in Docker, replace localhost/127.0.0.1 with db service name
+        DATABASE_URL = DATABASE_URL.replace('127.0.0.1', 'db').replace('localhost', 'db')
 
 class ProductionConfig(Config):
     """Production configuration"""
     DEBUG: bool = False
     DATABASE_URL: str = os.getenv("PROD_DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb_prod")
-    if os.path.exists('/.dockerenv'):
-        # We're in Docker, replace localhost with db service name
-        DATABASE_URL = DATABASE_URL.replace('localhost', 'db')
+    # Check if we're in Docker by checking for the .dockerenv file or specific environment variables
+    is_in_docker_container = os.path.exists('/.dockerenv') or 'HOSTNAME' in os.environ
+    if is_in_docker_container:
+        # We're in Docker, replace localhost/127.0.0.1 with db service name
+        DATABASE_URL = DATABASE_URL.replace('127.0.0.1', 'db').replace('localhost', 'db')
 
 class TestingConfig(Config):
     """Testing configuration"""
     TESTING: bool = True
     DATABASE_URL: str = os.getenv("TEST_DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb_test")
-    if os.path.exists('/.dockerenv'):
-        # We're in Docker, replace localhost with db service name
-        DATABASE_URL = DATABASE_URL.replace('localhost', 'db')
+    # Check if we're in Docker by checking for the .dockerenv file or specific environment variables
+    is_in_docker_container = os.path.exists('/.dockerenv') or 'HOSTNAME' in os.environ
+    if is_in_docker_container:
+        # We're in Docker, replace localhost/127.0.0.1 with db service name
+        DATABASE_URL = DATABASE_URL.replace('127.0.0.1', 'db').replace('localhost', 'db')
 
 # Configuration dictionary
 config_dict = {
