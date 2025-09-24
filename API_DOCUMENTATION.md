@@ -1,208 +1,148 @@
 # API Documentation
 
-This document provides a comprehensive overview of all available API endpoints in the FastAPI backend.
+This document provides comprehensive documentation for all API endpoints in the restaurant management system.
 
 ## Authentication
 
 All protected endpoints require a valid JWT token in the Authorization header:
+
 ```
 Authorization: Bearer <token>
 ```
 
+### Login
+**POST** `/api/auth/login`
+- Form data: username, password
+- Returns: access_token, token_type
+
+### Register
+**POST** `/api/auth/register`
+- JSON body: username, email, password, full_name, role
+- Returns: User object
+
+### Get Current User
+**GET** `/api/auth/me`
+- Returns: Current user information
+
 ## User Management
 
-### Register a new user
-**POST** `/api/users/register`
-- Request body: `{ "username": "string", "email": "string", "password": "string" }`
-- Response: User object with access token
+### List Users
+**GET** `/api/auth/users`
+- Requires authentication
+- Returns: List of all users
 
-### Login
-**POST** `/api/users/login`
-- Request body: `{ "username": "string", "password": "string" }`
-- Response: Access token
+### Get User
+**GET** `/api/auth/users/{user_id}`
+- Requires authentication
+- Returns: User object
 
-### Get current user
-**GET** `/api/users/me`
-- Response: Current user object
+### Update User
+**PUT** `/api/auth/users/{user_id}`
+- Requires authentication
+- JSON body: User fields to update
+- Returns: Updated user object
+
+### Delete User
+**DELETE** `/api/auth/users/{user_id}`
+- Requires authentication
+- Returns: 204 No Content
 
 ## Menu Management
 
-### Get all menu items
-**GET** `/api/menu/`
-- Response: Array of menu items
+### List Menu Items
+**GET** `/api/menu`
+- Returns: List of all menu items
 
-### Create a menu item
-**POST** `/api/menu/`
-- Request body: `{ "name": "string", "price": "number", "category": "string" }`
-- Response: Created menu item
-
-### Get menu item by ID
-**GET** `/api/menu/{item_id}`
-- Response: Menu item
-
-### Update menu item
-**PUT** `/api/menu/{item_id}`
-- Request body: `{ "name": "string", "price": "number", "category": "string" }`
-- Response: Updated menu item
-
-### Delete menu item
-**DELETE** `/api/menu/{item_id}`
-- Response: Success message
-
-### Get menu categories
-**GET** `/api/menu/categories`
-- Response: Array of category names
-
-### Get menu items by category
-**GET** `/api/menu/category/{category}`
-- Response: Array of menu items in the specified category
-
-### Create multiple menu items
-**POST** `/api/menu/batch`
-- Request body: Array of menu items
-- Response: Array of created menu items
+### Create Menu Item
+**POST** `/api/menu`
+- Requires authentication
+- JSON body: name, price, category
+- Returns: Created menu item
 
 ## Order Management
 
-### Get all orders
-**GET** `/api/orders/`
-- Response: Array of orders
+### List Orders
+**GET** `/api/orders`
+- Requires authentication
+- Returns: List of all orders
 
-### Create an order
-**POST** `/api/orders/`
-- Request body: Order object
-- Response: Created order
+### Create Order
+**POST** `/api/orders`
+- Requires authentication
+- JSON body: table_number, order_type, order_items
+- Returns: Created order
 
-### Get order by ID
+### Get Order
 **GET** `/api/orders/{order_id}`
-- Response: Order object
+- Requires authentication
+- Returns: Order object
 
-### Update order
+### Update Order
 **PUT** `/api/orders/{order_id}`
-- Request body: Partial order object
-- Response: Updated order
+- Requires authentication
+- JSON body: Order fields to update
+- Returns: Updated order object
 
-### Delete order
+### Delete Order
 **DELETE** `/api/orders/{order_id}`
-- Response: Success message
-
-### Update order status
-**PUT** `/api/orders/{order_id}/status`
-- Request body: `{ "status": "string" }`
-- Response: Updated order
-
-### Mark order as served
-**POST** `/api/orders/{order_id}/mark-served`
-- Response: Success message
-
-## Kitchen Display System (KDS)
-
-### Get all kitchen orders
-**GET** `/api/kitchen/orders`
-- Response: Array of kitchen orders
-
-### Get kitchen order by ID
-**GET** `/api/kitchen/orders/{order_id}`
-- Response: Kitchen order
-
-### Update kitchen order status
-**PUT** `/api/kitchen/orders/{order_id}`
-- Request body: `{ "status": "string" }`
-- Response: Updated kitchen order
-
-### Remove kitchen order
-**DELETE** `/api/kitchen/orders/{order_id}`
-- Response: Success message
-
-### Print Kitchen Order Ticket (KOT)
-**POST** `/api/kitchen/orders/{order_id}/print-kot`
-- Response: Success message
+- Requires authentication
+- Returns: 204 No Content
 
 ## Table Management
 
-### Get all tables
-**GET** `/api/tables/`
-- Response: Array of tables
+### List Tables
+**GET** `/api/tables`
+- Requires authentication
+- Returns: List of all tables
 
-### Create a table
-**POST** `/api/tables/`
-- Request body: `{ "table_number": "integer", "capacity": "integer" }`
-- Response: Created table
+### Create Table
+**POST** `/api/tables`
+- Requires authentication
+- JSON body: table_number, capacity
+- Returns: Created table
 
-### Get table by ID
+### Get Table
 **GET** `/api/tables/{table_id}`
-- Response: Table object
+- Requires authentication
+- Returns: Table object
 
-### Update table
+### Update Table
 **PUT** `/api/tables/{table_id}`
-- Request body: Partial table object
-- Response: Updated table
+- Requires authentication
+- JSON body: Table fields to update
+- Returns: Updated table object
 
-### Delete table
+### Delete Table
 **DELETE** `/api/tables/{table_id}`
-- Response: Success message
+- Requires authentication
+- Returns: 204 No Content
 
-### Assign table to order
-**POST** `/api/tables/{table_id}/assign/{order_id}`
-- Response: Success message
+## Analytics
 
-### Release table
-**POST** `/api/tables/{table_id}/release`
-- Response: Success message
+### Sales by Employee
+**GET** `/api/analytics/sales-by-employee`
+- Requires authentication (MANAGER or ADMIN role)
+- Query parameters: start_date, end_date (optional)
+- Returns: List of employee sales data
 
-### Assign specific seat
-**POST** `/api/tables/{table_id}/assign-seat/{seat_number}`
-- Query parameter: `customer_name` (optional)
-- Response: Success message
+### Tips by Employee
+**GET** `/api/analytics/tips-by-employee`
+- Requires authentication (MANAGER or ADMIN role)
+- Query parameters: start_date, end_date (optional)
+- Returns: List of employee tip data
 
-### Release specific seat
-**POST** `/api/tables/{table_id}/release-seat/{seat_number}`
-- Response: Success message
+### Upselling Performance
+**GET** `/api/analytics/upselling-performance`
+- Requires authentication (MANAGER or ADMIN role)
+- Query parameters: start_date, end_date (optional)
+- Returns: List of employee upselling performance data
 
-### Merge tables
-**POST** `/api/tables/merge-tables/{table_id1}/{table_id2}`
-- Response: Success message
-
-### Split bill
-**POST** `/api/tables/split-bill/{table_id}`
-- Request body: Split details
-- Response: Success message
-
-### Get occupied tables
-**GET** `/api/tables/occupied`
-- Response: Array of occupied tables
-
-### Get available tables
-**GET** `/api/tables/available`
-- Response: Array of available tables
-
-## Invoice Management
-
-### Get all invoices
-**GET** `/api/invoices/`
-- Response: Array of invoices
-
-### Create an invoice
-**POST** `/api/invoices/`
-- Request body: Invoice object
-- Response: Created invoice
-
-### Get invoice by ID
-**GET** `/api/invoices/{invoice_id}`
-- Response: Invoice object
-
-### Update invoice
-**PUT** `/api/invoices/{invoice_id}`
-- Request body: Partial invoice object
-- Response: Updated invoice
-
-### Delete invoice
-**DELETE** `/api/invoices/{invoice_id}`
-- Response: Success message
-
-### Get invoice by order ID
-**GET** `/api/invoices/order/{order_id}`
-- Response: Invoice object
+### Employee Performance Summary
+**GET** `/api/analytics/employee/{employee_id}/performance`
+- Requires authentication (MANAGER or ADMIN role)
+- Path parameter: employee_id
+- Query parameters: start_date, end_date (optional)
+- Returns: Comprehensive performance summary for the specified employee
 
 ## Error Responses
 
