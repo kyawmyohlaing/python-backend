@@ -115,6 +115,96 @@ Retrieve comprehensive performance summary for a specific employee.
 }
 ```
 
+### 5. Get Daily Sales Report
+
+Retrieve daily sales report with sales data grouped by day.
+
+**Endpoint:** `GET /api/analytics/reports/daily`
+
+**Parameters:**
+- `start_date` (optional): Filter results from this date (ISO 8601 format)
+- `end_date` (optional): Filter results until this date (ISO 8601 format)
+
+**Response:**
+```json
+{
+  "period": "daily",
+  "start_date": "2023-01-01T00:00:00",
+  "end_date": "2023-01-31T00:00:00",
+  "total_sales": 25000.00,
+  "total_orders": 500,
+  "average_daily_sales": 806.45,
+  "sales_data": [
+    {
+      "date": "2023-01-01T00:00:00",
+      "total_sales": 1200.50,
+      "order_count": 25,
+      "average_order_value": 48.02
+    }
+  ]
+}
+```
+
+### 6. Get Weekly Sales Report
+
+Retrieve weekly sales report with sales data grouped by week.
+
+**Endpoint:** `GET /api/analytics/reports/weekly`
+
+**Parameters:**
+- `start_date` (optional): Filter results from this date (ISO 8601 format)
+- `end_date` (optional): Filter results until this date (ISO 8601 format)
+
+**Response:**
+```json
+{
+  "period": "weekly",
+  "start_date": "2023-01-01T00:00:00",
+  "end_date": "2023-03-31T00:00:00",
+  "total_sales": 125000.00,
+  "total_orders": 2500,
+  "average_weekly_sales": 10000.00,
+  "sales_data": [
+    {
+      "date": "2023-01-01T00:00:00",
+      "total_sales": 12000.50,
+      "order_count": 250,
+      "average_order_value": 48.00
+    }
+  ]
+}
+```
+
+### 7. Get Monthly Sales Report
+
+Retrieve monthly sales report with sales data grouped by month.
+
+**Endpoint:** `GET /api/analytics/reports/monthly`
+
+**Parameters:**
+- `start_date` (optional): Filter results from this date (ISO 8601 format)
+- `end_date` (optional): Filter results until this date (ISO 8601 format)
+
+**Response:**
+```json
+{
+  "period": "monthly",
+  "start_date": "2023-01-01T00:00:00",
+  "end_date": "2023-12-31T00:00:00",
+  "total_sales": 500000.00,
+  "total_orders": 10000,
+  "average_monthly_sales": 41666.67,
+  "sales_data": [
+    {
+      "date": "2023-01-01T00:00:00",
+      "total_sales": 50000.00,
+      "order_count": 1000,
+      "average_order_value": 50.00
+    }
+  ]
+}
+```
+
 ## Error Responses
 
 All endpoints return appropriate HTTP status codes:

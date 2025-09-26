@@ -75,6 +75,8 @@ fastapi_backend/
 - User login with JWT token generation
 - Protected routes requiring authentication
 - User profile retrieval
+- Analytics endpoints for sales reports (daily, weekly, monthly)
+- Employee performance tracking
 
 ### Seeded Example User
 - Email: user@example.com

@@ -144,6 +144,24 @@ Authorization: Bearer <token>
 - Query parameters: start_date, end_date (optional)
 - Returns: Comprehensive performance summary for the specified employee
 
+### Daily Sales Report
+**GET** `/api/analytics/reports/daily`
+- Requires authentication (MANAGER or ADMIN role)
+- Query parameters: start_date, end_date (optional)
+- Returns: Daily sales report with sales data grouped by day
+
+### Weekly Sales Report
+**GET** `/api/analytics/reports/weekly`
+- Requires authentication (MANAGER or ADMIN role)
+- Query parameters: start_date, end_date (optional)
+- Returns: Weekly sales report with sales data grouped by week
+
+### Monthly Sales Report
+**GET** `/api/analytics/reports/monthly`
+- Requires authentication (MANAGER or ADMIN role)
+- Query parameters: start_date, end_date (optional)
+- Returns: Monthly sales report with sales data grouped by month
+
 ## Error Responses
 
 All endpoints return appropriate HTTP status codes:

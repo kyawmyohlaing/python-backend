@@ -16,6 +16,7 @@ A production-ready, scalable FastAPI backend template designed for building secu
 - Kitchen display system (KDS) integration
 - Table management system
 - Invoice generation and management system
+- Analytics and sales reporting system (daily, weekly, monthly reports)
 
 ## Prerequisites
 
@@ -93,6 +94,7 @@ If you encounter database connection issues:
 - `/api/kitchen/` - Kitchen display system
 - `/api/tables/` - Table management
 - `/api/invoices/` - Invoice management
+- `/api/analytics/` - Analytics and sales reporting
 
 ## Development
 
@@ -113,6 +115,17 @@ make prod
 ```bash
 make test
 ```
+
+### Testing Sales Reports Feature
+
+Special tests are available for the sales reports feature:
+
+```bash
+python test_sales_reports.py
+python test_analytics_service.py
+```
+
+See [SALES_REPORTS_TESTING_GUIDE.md](SALES_REPORTS_TESTING_GUIDE.md) for detailed testing instructions.
 
 ### Database Migrations
 

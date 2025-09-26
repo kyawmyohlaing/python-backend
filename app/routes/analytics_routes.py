@@ -14,7 +14,10 @@ try:
         SalesByEmployeeResponse,
         TipsByEmployeeResponse,
         UpsellingPerformanceResponse,
-        EmployeePerformanceResponse
+        EmployeePerformanceResponse,
+        DailySalesReportResponse,
+        WeeklySalesReportResponse,
+        MonthlySalesReportResponse
     )
 except ImportError:
     # Try importing directly (Docker container)
@@ -26,7 +29,10 @@ except ImportError:
         SalesByEmployeeResponse,
         TipsByEmployeeResponse,
         UpsellingPerformanceResponse,
-        EmployeePerformanceResponse
+        EmployeePerformanceResponse,
+        DailySalesReportResponse,
+        WeeklySalesReportResponse,
+        MonthlySalesReportResponse
     )
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
@@ -118,3 +124,64 @@ def get_employee_performance(
         )
     
     return performance
+
+# New endpoints for sales reports
+@router.get("/reports/daily", response_model=DailySalesReportResponse)
+def get_daily_sales_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None
+):
+    """
+    Get daily sales report
+    Only accessible by managers and admins
+    """
+    # Check if user has permission to view analytics
+    if current_user.role not in [UserRole.MANAGER, UserRole.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to access analytics"
+        )
+    
+    return AnalyticsService.get_daily_sales_report(db, start_date, end_date)
+
+@router.get("/reports/weekly", response_model=WeeklySalesReportResponse)
+def get_weekly_sales_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None
+):
+    """
+    Get weekly sales report
+    Only accessible by managers and admins
+    """
+    # Check if user has permission to view analytics
+    if current_user.role not in [UserRole.MANAGER, UserRole.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to access analytics"
+        )
+    
+    return AnalyticsService.get_weekly_sales_report(db, start_date, end_date)
+
+@router.get("/reports/monthly", response_model=MonthlySalesReportResponse)
+def get_monthly_sales_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None
+):
+    """
+    Get monthly sales report
+    Only accessible by managers and admins
+    """
+    # Check if user has permission to view analytics
+    if current_user.role not in [UserRole.MANAGER, UserRole.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to access analytics"
+        )
+    
+    return AnalyticsService.get_monthly_sales_report(db, start_date, end_date)

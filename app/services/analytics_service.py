@@ -15,7 +15,11 @@ try:
         SalesByEmployeeResponse,
         TipsByEmployeeResponse,
         UpsellingPerformanceResponse,
-        EmployeePerformanceResponse
+        EmployeePerformanceResponse,
+        DailySalesReportResponse,
+        WeeklySalesReportResponse,
+        MonthlySalesReportResponse,
+        SalesReportItem
     )
 except ImportError:
     # Try importing directly (Docker container)
@@ -27,7 +31,11 @@ except ImportError:
         SalesByEmployeeResponse,
         TipsByEmployeeResponse,
         UpsellingPerformanceResponse,
-        EmployeePerformanceResponse
+        EmployeePerformanceResponse,
+        DailySalesReportResponse,
+        WeeklySalesReportResponse,
+        MonthlySalesReportResponse,
+        SalesReportItem
     )
 
 
@@ -206,3 +214,242 @@ class AnalyticsService:
         except Exception:
             # Return None if query fails
             return None
+
+    @staticmethod
+    def get_daily_sales_report(db: Session, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> DailySalesReportResponse:
+        """
+        Get daily sales report with sales data grouped by day
+        """
+        try:
+            # Set default date range to last 30 days if not provided
+            if not start_date:
+                start_date = datetime.now() - timedelta(days=30)
+            if not end_date:
+                end_date = datetime.now()
+                
+            # Query to get sales data grouped by day
+            query = db.query(
+                func.date(Order.created_at).label('date'),
+                func.sum(Order.total).label('total_sales'),
+                func.count(Order.id).label('order_count'),
+                func.avg(Order.total).label('average_order_value')
+            ).filter(
+                Order.created_at >= start_date,
+                Order.created_at <= end_date
+            ).group_by(func.date(Order.created_at))\
+             .order_by(func.date(Order.created_at))
+            
+            results = query.all()
+            
+            # Format results
+            sales_data = []
+            total_sales = 0
+            total_orders = 0
+            
+            for result in results:
+                try:
+                    # Create a dictionary with the values
+                    data_dict = {
+                        'date': result.date,
+                        'total_sales': float(result.total_sales) if result.total_sales is not None else 0.0,
+                        'order_count': int(result.order_count) if result.order_count is not None else 0,
+                        'average_order_value': float(result.average_order_value) if result.average_order_value is not None else 0.0
+                    }
+                    
+                    sales_item = SalesReportItem(**data_dict)
+                    sales_data.append(sales_item)
+                    
+                    # Accumulate totals
+                    total_sales += sales_item.total_sales
+                    total_orders += sales_item.order_count
+                except Exception:
+                    # Skip records that can't be processed
+                    continue
+            
+            # Calculate average daily sales
+            average_daily_sales = total_sales / len(sales_data) if sales_data else 0.0
+            
+            # Create response
+            response_dict = {
+                'period': 'daily',
+                'start_date': start_date,
+                'end_date': end_date,
+                'total_sales': total_sales,
+                'total_orders': total_orders,
+                'average_daily_sales': average_daily_sales,
+                'sales_data': sales_data
+            }
+            
+            return DailySalesReportResponse(**response_dict)
+        except Exception as e:
+            # Return empty response if query fails
+            response_dict = {
+                'period': 'daily',
+                'start_date': start_date or datetime.now() - timedelta(days=30),
+                'end_date': end_date or datetime.now(),
+                'total_sales': 0,
+                'total_orders': 0,
+                'average_daily_sales': 0,
+                'sales_data': []
+            }
+            return DailySalesReportResponse(**response_dict)
+
+    @staticmethod
+    def get_weekly_sales_report(db: Session, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> WeeklySalesReportResponse:
+        """
+        Get weekly sales report with sales data grouped by week
+        """
+        try:
+            # Set default date range to last 12 weeks if not provided
+            if not start_date:
+                start_date = datetime.now() - timedelta(weeks=12)
+            if not end_date:
+                end_date = datetime.now()
+                
+            # Query to get sales data grouped by week
+            # Using PostgreSQL-compatible date functions
+            query = db.query(
+                func.date_trunc('week', Order.created_at).label('week'),
+                func.sum(Order.total).label('total_sales'),
+                func.count(Order.id).label('order_count'),
+                func.avg(Order.total).label('average_order_value')
+            ).filter(
+                Order.created_at >= start_date,
+                Order.created_at <= end_date
+            ).group_by(func.date_trunc('week', Order.created_at))\
+             .order_by(func.date_trunc('week', Order.created_at))
+            
+            results = query.all()
+            
+            # Format results
+            sales_data = []
+            total_sales = 0
+            total_orders = 0
+            
+            for result in results:
+                try:
+                    # Use the actual week date from the query result
+                    data_dict = {
+                        'date': result.week,  # Use the actual week date from query
+                        'total_sales': float(result.total_sales) if result.total_sales is not None else 0.0,
+                        'order_count': int(result.order_count) if result.order_count is not None else 0,
+                        'average_order_value': float(result.average_order_value) if result.average_order_value is not None else 0.0
+                    }
+                    
+                    sales_item = SalesReportItem(**data_dict)
+                    sales_data.append(sales_item)
+                    
+                    # Accumulate totals
+                    total_sales += sales_item.total_sales
+                    total_orders += sales_item.order_count
+                except Exception:
+                    # Skip records that can't be processed
+                    continue
+            
+            # Calculate average weekly sales
+            average_weekly_sales = total_sales / len(sales_data) if sales_data else 0.0
+            
+            # Create response
+            response_dict = {
+                'period': 'weekly',
+                'start_date': start_date,
+                'end_date': end_date,
+                'total_sales': total_sales,
+                'total_orders': total_orders,
+                'average_weekly_sales': average_weekly_sales,
+                'sales_data': sales_data
+            }
+            
+            return WeeklySalesReportResponse(**response_dict)
+        except Exception as e:
+            # Return empty response if query fails
+            response_dict = {
+                'period': 'weekly',
+                'start_date': start_date or datetime.now() - timedelta(weeks=12),
+                'end_date': end_date or datetime.now(),
+                'total_sales': 0,
+                'total_orders': 0,
+                'average_weekly_sales': 0,
+                'sales_data': []
+            }
+            return WeeklySalesReportResponse(**response_dict)
+
+    @staticmethod
+    def get_monthly_sales_report(db: Session, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> MonthlySalesReportResponse:
+        """
+        Get monthly sales report with sales data grouped by month
+        """
+        try:
+            # Set default date range to last 12 months if not provided
+            if not start_date:
+                start_date = datetime.now() - timedelta(days=365)
+            if not end_date:
+                end_date = datetime.now()
+                
+            # Query to get sales data grouped by month
+            # Using PostgreSQL-compatible date functions
+            query = db.query(
+                func.date_trunc('month', Order.created_at).label('month'),
+                func.sum(Order.total).label('total_sales'),
+                func.count(Order.id).label('order_count'),
+                func.avg(Order.total).label('average_order_value')
+            ).filter(
+                Order.created_at >= start_date,
+                Order.created_at <= end_date
+            ).group_by(func.date_trunc('month', Order.created_at))\
+             .order_by(func.date_trunc('month', Order.created_at))
+            
+            results = query.all()
+            
+            # Format results
+            sales_data = []
+            total_sales = 0
+            total_orders = 0
+            
+            for result in results:
+                try:
+                    # Use the actual month date from the query result
+                    data_dict = {
+                        'date': result.month,  # Use the actual month date from query
+                        'total_sales': float(result.total_sales) if result.total_sales is not None else 0.0,
+                        'order_count': int(result.order_count) if result.order_count is not None else 0,
+                        'average_order_value': float(result.average_order_value) if result.average_order_value is not None else 0.0
+                    }
+                    
+                    sales_item = SalesReportItem(**data_dict)
+                    sales_data.append(sales_item)
+                    
+                    # Accumulate totals
+                    total_sales += sales_item.total_sales
+                    total_orders += sales_item.order_count
+                except Exception:
+                    # Skip records that can't be processed
+                    continue
+            
+            # Calculate average monthly sales
+            average_monthly_sales = total_sales / len(sales_data) if sales_data else 0.0
+            
+            # Create response
+            response_dict = {
+                'period': 'monthly',
+                'start_date': start_date,
+                'end_date': end_date,
+                'total_sales': total_sales,
+                'total_orders': total_orders,
+                'average_monthly_sales': average_monthly_sales,
+                'sales_data': sales_data
+            }
+            
+            return MonthlySalesReportResponse(**response_dict)
+        except Exception as e:
+            # Return empty response if query fails
+            response_dict = {
+                'period': 'monthly',
+                'start_date': start_date or datetime.now() - timedelta(days=365),
+                'end_date': end_date or datetime.now(),
+                'total_sales': 0,
+                'total_orders': 0,
+                'average_monthly_sales': 0,
+                'sales_data': []
+            }
+            return MonthlySalesReportResponse(**response_dict)

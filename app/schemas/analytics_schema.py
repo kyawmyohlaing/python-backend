@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 class SalesByEmployeeResponse(BaseModel):
@@ -46,6 +46,52 @@ class EmployeePerformanceResponse(BaseModel):
     average_order_value: float
     total_tips: float
     upsell_count: int
+    
+    class Config:
+        from_attributes = True
+
+# New schemas for sales reports
+class SalesReportItem(BaseModel):
+    date: datetime
+    total_sales: float
+    order_count: int
+    average_order_value: float
+    
+    class Config:
+        from_attributes = True
+
+class DailySalesReportResponse(BaseModel):
+    period: str  # "daily"
+    start_date: datetime
+    end_date: datetime
+    total_sales: float
+    total_orders: int
+    average_daily_sales: float
+    sales_data: List[SalesReportItem]
+    
+    class Config:
+        from_attributes = True
+
+class WeeklySalesReportResponse(BaseModel):
+    period: str  # "weekly"
+    start_date: datetime
+    end_date: datetime
+    total_sales: float
+    total_orders: int
+    average_weekly_sales: float
+    sales_data: List[SalesReportItem]
+    
+    class Config:
+        from_attributes = True
+
+class MonthlySalesReportResponse(BaseModel):
+    period: str  # "monthly"
+    start_date: datetime
+    end_date: datetime
+    total_sales: float
+    total_orders: int
+    average_monthly_sales: float
+    sales_data: List[SalesReportItem]
     
     class Config:
         from_attributes = True

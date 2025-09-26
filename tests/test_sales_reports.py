@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script for analytics functionality
+Test script for sales reports functionality
 """
 
 import os
@@ -8,15 +8,15 @@ import sys
 import requests
 from datetime import datetime, timedelta
 
-# Add the app directory to the Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
+# Add the parent directory to the Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-def test_analytics_endpoints():
-    """Test the analytics endpoints"""
+def test_sales_report_endpoints():
+    """Test the sales report endpoints"""
     base_url = "http://localhost:8088"
     api_prefix = "/api"
     
-    print("Testing Analytics Endpoints")
+    print("Testing Sales Report Endpoints")
     print("=" * 40)
     
     # First, we need to login to get a token
@@ -46,61 +46,8 @@ def test_analytics_endpoints():
     # Set up headers with the token
     headers = {"Authorization": f"Bearer {token}"}
     
-    # Test sales by employee endpoint
-    print("2. Testing sales by employee endpoint...")
-    try:
-        response = requests.get(
-            f"{base_url}{api_prefix}/analytics/sales-by-employee",
-            headers=headers
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"   Success! Retrieved {len(data)} employee records")
-            if data:
-                print(f"   Sample record: {data[0]}")
-        else:
-            print(f"   Failed with status code: {response.status_code}")
-            print(f"   Response: {response.text}")
-    except Exception as e:
-        print(f"   Failed with error: {str(e)}")
-    
-    # Test tips by employee endpoint
-    print("3. Testing tips by employee endpoint...")
-    try:
-        response = requests.get(
-            f"{base_url}{api_prefix}/analytics/tips-by-employee",
-            headers=headers
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"   Success! Retrieved {len(data)} employee records")
-        else:
-            print(f"   Failed with status code: {response.status_code}")
-            print(f"   Response: {response.text}")
-    except Exception as e:
-        print(f"   Failed with error: {str(e)}")
-    
-    # Test upselling performance endpoint
-    print("4. Testing upselling performance endpoint...")
-    try:
-        response = requests.get(
-            f"{base_url}{api_prefix}/analytics/upselling-performance",
-            headers=headers
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"   Success! Retrieved {len(data)} employee records")
-        else:
-            print(f"   Failed with status code: {response.status_code}")
-            print(f"   Response: {response.text}")
-    except Exception as e:
-        print(f"   Failed with error: {str(e)}")
-    
     # Test daily sales report endpoint
-    print("5. Testing daily sales report endpoint...")
+    print("2. Testing daily sales report endpoint...")
     try:
         response = requests.get(
             f"{base_url}{api_prefix}/analytics/reports/daily",
@@ -112,6 +59,7 @@ def test_analytics_endpoints():
             print(f"   Success! Retrieved daily sales report")
             print(f"   Period: {data.get('period')}")
             print(f"   Total sales: {data.get('total_sales')}")
+            print(f"   Total orders: {data.get('total_orders')}")
         else:
             print(f"   Failed with status code: {response.status_code}")
             print(f"   Response: {response.text}")
@@ -119,7 +67,7 @@ def test_analytics_endpoints():
         print(f"   Failed with error: {str(e)}")
     
     # Test weekly sales report endpoint
-    print("6. Testing weekly sales report endpoint...")
+    print("3. Testing weekly sales report endpoint...")
     try:
         response = requests.get(
             f"{base_url}{api_prefix}/analytics/reports/weekly",
@@ -131,6 +79,7 @@ def test_analytics_endpoints():
             print(f"   Success! Retrieved weekly sales report")
             print(f"   Period: {data.get('period')}")
             print(f"   Total sales: {data.get('total_sales')}")
+            print(f"   Total orders: {data.get('total_orders')}")
         else:
             print(f"   Failed with status code: {response.status_code}")
             print(f"   Response: {response.text}")
@@ -138,7 +87,7 @@ def test_analytics_endpoints():
         print(f"   Failed with error: {str(e)}")
     
     # Test monthly sales report endpoint
-    print("7. Testing monthly sales report endpoint...")
+    print("4. Testing monthly sales report endpoint...")
     try:
         response = requests.get(
             f"{base_url}{api_prefix}/analytics/reports/monthly",
@@ -150,13 +99,42 @@ def test_analytics_endpoints():
             print(f"   Success! Retrieved monthly sales report")
             print(f"   Period: {data.get('period')}")
             print(f"   Total sales: {data.get('total_sales')}")
+            print(f"   Total orders: {data.get('total_orders')}")
         else:
             print(f"   Failed with status code: {response.status_code}")
             print(f"   Response: {response.text}")
     except Exception as e:
         print(f"   Failed with error: {str(e)}")
     
-    print("\nAnalytics testing completed!")
+    # Test sales report endpoint with date filters
+    print("5. Testing sales report endpoint with date filters...")
+    try:
+        # Calculate date range (last 7 days)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=7)
+        
+        response = requests.get(
+            f"{base_url}{api_prefix}/analytics/reports/daily",
+            headers=headers,
+            params={
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat()
+            }
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"   Success! Retrieved filtered daily sales report")
+            print(f"   Start date: {data.get('start_date')}")
+            print(f"   End date: {data.get('end_date')}")
+            print(f"   Sales data points: {len(data.get('sales_data', []))}")
+        else:
+            print(f"   Failed with status code: {response.status_code}")
+            print(f"   Response: {response.text}")
+    except Exception as e:
+        print(f"   Failed with error: {str(e)}")
+    
+    print("\nSales report testing completed!")
 
 if __name__ == "__main__":
-    test_analytics_endpoints()
+    test_sales_report_endpoints()

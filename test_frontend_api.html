@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background-color: #f8f9fa; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Frontend API Test for Sales Reports</h1>
+    
+    <div>
+        <button onclick="login()">1. Login</button>
+        <button onclick="testDailyReport()">2. Test Daily Report</button>
+        <button onclick="testWeeklyReport()">3. Test Weekly Report</button>
+        <button onclick="testMonthlyReport()">4. Test Monthly Report</button>
+        <button onclick="clearResults()">5. Clear Results</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        let authToken = null;
+        const baseUrl = 'http://localhost:8088';
+        
+        function addResult(message, isSuccess) {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${isSuccess ? 'success' : 'error'}`;
+            resultDiv.innerHTML = `<strong>${isSuccess ? '✓' : '✗'} ${message}</strong>`;
+            resultsDiv.appendChild(resultDiv);
+            
+            // Also log to console
+            if (isSuccess) {
+                console.log('Success:', message);
+            } else {
+                console.error('Error:', message);
+            }
+        }
+        
+        async function login() {
+            try {
+                const response = await fetch(`${baseUrl}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'username=manager&password=manager123'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.access_token;
+                    addResult(`Login successful. Token: ${authToken.substring(0, 20)}...`, true);
+                } else {
+                    const errorText = await response.text();
+                    addResult(`Login failed with status ${response.status}: ${errorText}`, false);
+                }
+            } catch (error) {
+                addResult(`Login failed with error: ${error.message}`, false);
+            }
+        }
+        
+        async function testDailyReport() {
+            if (!authToken) {
+                addResult('Please login first', false);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/analytics/reports/daily`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`Daily report retrieved successfully. Total sales: ${data.total_sales}, Orders: ${data.total_orders}`, true);
+                    addResult(`Response preview: ${JSON.stringify(data, null, 2).substring(0, 200)}...`, true);
+                } else {
+                    const errorText = await response.text();
+                    addResult(`Daily report failed with status ${response.status}: ${errorText}`, false);
+                }
+            } catch (error) {
+                addResult(`Daily report failed with error: ${error.message}`, false);
+            }
+        }
+        
+        async function testWeeklyReport() {
+            if (!authToken) {
+                addResult('Please login first', false);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/analytics/reports/weekly`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`Weekly report retrieved successfully. Total sales: ${data.total_sales}, Orders: ${data.total_orders}`, true);
+                    addResult(`Response preview: ${JSON.stringify(data, null, 2).substring(0, 200)}...`, true);
+                } else {
+                    const errorText = await response.text();
+                    addResult(`Weekly report failed with status ${response.status}: ${errorText}`, false);
+                }
+            } catch (error) {
+                addResult(`Weekly report failed with error: ${error.message}`, false);
+            }
+        }
+        
+        async function testMonthlyReport() {
+            if (!authToken) {
+                addResult('Please login first', false);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/analytics/reports/monthly`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`Monthly report retrieved successfully. Total sales: ${data.total_sales}, Orders: ${data.total_orders}`, true);
+                    addResult(`Response preview: ${JSON.stringify(data, null, 2).substring(0, 200)}...`, true);
+                } else {
+                    const errorText = await response.text();
+                    addResult(`Monthly report failed with status ${response.status}: ${errorText}`, false);
+                }
+            } catch (error) {
+                addResult(`Monthly report failed with error: ${error.message}`, false);
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
