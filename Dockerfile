@@ -10,9 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app code and other necessary files
 COPY ./app ./app
-COPY ./app/migrations ./app/migrations
-COPY ./app/migrations/alembic.ini ./app/migrations/alembic.ini
-COPY ./app/init_db.py ./app/init_db.py
+COPY ./app/migrations ./migrations
+COPY ./app/migrations/alembic.ini ./migrations/alembic.ini
+COPY ./app/init_db.py ./init_db.py
 COPY ./start.sh ./start.sh
 RUN chmod +x ./start.sh
 
@@ -22,5 +22,5 @@ ENV PYTHONPATH=/app
 # Expose port
 EXPOSE 8088
 
-# Run the application directly
-CMD ["python", "app/main.py"]
+# Run the application
+CMD ["./start.sh"]

@@ -12,6 +12,7 @@ class OrderBase(BaseModel):
     table_id: Optional[int] = None
     customer_count: Optional[int] = 1
     special_requests: Optional[str] = None
+    payment_type: Optional[str] = "cash"
 
 class OrderCreate(OrderBase):
     assigned_seats: Optional[List[int]] = None
@@ -35,6 +36,7 @@ class OrderUpdate(BaseModel):
     customer_phone: Optional[str] = None
     delivery_address: Optional[str] = None
     modifiers: Optional[dict] = None
+    payment_type: Optional[str] = None
 
 class OrderResponse(OrderBase):
     id: int

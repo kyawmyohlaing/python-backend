@@ -77,6 +77,7 @@ fastapi_backend/
 - User profile retrieval
 - Analytics endpoints for sales reports (daily, weekly, monthly)
 - Employee performance tracking
+- Multiple payment types support (cash, card, QR, e-wallet, gift card)
 
 ### Seeded Example User
 - Email: user@example.com

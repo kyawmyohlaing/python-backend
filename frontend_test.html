@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Authentication Test</title>
+</head>
+<body>
+    <h1>Frontend Authentication Test</h1>
+    
+    <div>
+        <h2>Login Test</h2>
+        <button onclick="testLogin()">Test Login</button>
+        <div id="loginResult"></div>
+    </div>
+    
+    <div>
+        <h2>Orders Test (with auth)</h2>
+        <button onclick="testOrdersWithAuth()">Test Orders with Auth</button>
+        <div id="ordersWithAuthResult"></div>
+    </div>
+    
+    <div>
+        <h2>Orders Test (without auth)</h2>
+        <button onclick="testOrdersWithoutAuth()">Test Orders without Auth</button>
+        <div id="ordersWithoutAuthResult"></div>
+    </div>
+
+    <script>
+        let authToken = null;
+        
+        async function testLogin() {
+            const resultDiv = document.getElementById('loginResult');
+            try {
+                const response = await fetch('http://localhost:8088/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'username=manager@example.com&password=manager123'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.access_token;
+                    resultDiv.innerHTML = `<p style="color: green;">Login successful! Token: ${authToken.substring(0, 20)}...</p>`;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.innerHTML = `<p style="color: red;">Login failed with status ${response.status}: ${errorText}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">Login failed with error: ${error.message}</p>`;
+            }
+        }
+        
+        async function testOrdersWithAuth() {
+            const resultDiv = document.getElementById('ordersWithAuthResult');
+            if (!authToken) {
+                resultDiv.innerHTML = '<p style="color: orange;">Please login first</p>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8088/api/orders', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<p style="color: green;">Orders retrieved successfully! Found ${data.length} orders.</p>`;
+                    console.log('Orders data:', data);
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.innerHTML = `<p style="color: red;">Orders request failed with status ${response.status}: ${errorText}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">Orders request failed with error: ${error.message}</p>`;
+            }
+        }
+        
+        async function testOrdersWithoutAuth() {
+            const resultDiv = document.getElementById('ordersWithoutAuthResult');
+            
+            try {
+                const response = await fetch('http://localhost:8088/api/orders', {
+                    method: 'GET'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<p style="color: green;">Orders retrieved successfully! Found ${data.length} orders.</p>`;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.innerHTML = `<p style="color: red;">Orders request failed with status ${response.status}: ${errorText}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">Orders request failed with error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

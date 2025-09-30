@@ -19,6 +19,7 @@ class InvoiceBase(BaseModel):
     tax: float = 0.0
     total: float
     invoice_items: List[InvoiceItem]
+    payment_type: Optional[str] = "cash"
 
 class InvoiceCreate(InvoiceBase):
     pass
@@ -31,6 +32,7 @@ class InvoiceUpdate(BaseModel):
     tax: Optional[float] = None
     total: Optional[float] = None
     invoice_items: Optional[List[InvoiceItem]] = None
+    payment_type: Optional[str] = None
 
 class InvoiceResponse(InvoiceBase):
     id: int

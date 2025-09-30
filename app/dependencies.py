@@ -1,13 +1,21 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-# Since we're in the container and files are directly in /app, we import directly
-from database import get_db
-from models.user import User, UserRole
-from security import decode_access_token
 
-# OAuth2 scheme for JWT token
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/users/login")
+# Handle imports for both local development and Docker container environments
+try:
+    # Try importing from app.module (local development)
+    from app.database import get_db
+    from app.models.user import User, UserRole
+    from app.security import decode_access_token
+except ImportError:
+    # Try importing directly (Docker container)
+    from database import get_db
+    from models.user import User, UserRole
+    from security import decode_access_token
+
+# OAuth2 scheme for JWT token - Updated to match the actual login endpoint
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     """

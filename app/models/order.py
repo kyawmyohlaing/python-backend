@@ -27,6 +27,14 @@ class OrderType(str, enum.Enum):
     DELIVERY = "delivery"
 
 
+class PaymentType(str, enum.Enum):
+    CASH = "cash"
+    CARD = "card"
+    QR = "qr"
+    E_WALLET = "e_wallet"
+    GIFT_CARD = "gift_card"
+
+
 # Association table for order and users (many-to-many relationship)
 order_staff_association = Table(
     "order_staff_association",
@@ -61,6 +69,9 @@ class Order(Base):
     customer_phone = Column(String)
     delivery_address = Column(String)
     modifiers = Column(JSON)
+    
+    # Payment type field
+    payment_type = Column(Enum(PaymentType), default=PaymentType.CASH)
 
     # Relationships (using string references to avoid circular imports)
     order_items = relationship("OrderItem", back_populates="order", lazy="select")

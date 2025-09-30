@@ -69,8 +69,15 @@ Authorization: Bearer <token>
 ### Create Order
 **POST** `/api/orders`
 - Requires authentication
-- JSON body: table_number, order_type, order_items
+- JSON body: table_number, order_type, order_items, payment_type
 - Returns: Created order
+
+**Payment Types:**
+- `cash` - Cash payment
+- `card` - Credit/debit card payment
+- `qr` - QR code payment
+- `e_wallet` - Electronic wallet payment
+- `gift_card` - Gift card payment
 
 ### Get Order
 **GET** `/api/orders/{order_id}`
@@ -80,7 +87,7 @@ Authorization: Bearer <token>
 ### Update Order
 **PUT** `/api/orders/{order_id}`
 - Requires authentication
-- JSON body: Order fields to update
+- JSON body: Order fields to update (including payment_type)
 - Returns: Updated order object
 
 ### Delete Order
@@ -116,6 +123,47 @@ Authorization: Bearer <token>
 **DELETE** `/api/tables/{table_id}`
 - Requires authentication
 - Returns: 204 No Content
+
+## Invoice Management
+
+### List Invoices
+**GET** `/api/invoices`
+- Requires authentication
+- Returns: List of all invoices
+
+### Create Invoice
+**POST** `/api/invoices`
+- Requires authentication
+- JSON body: order_id, customer_name, order_type, subtotal, total, invoice_items, payment_type
+- Returns: Created invoice
+
+**Payment Types:**
+- `cash` - Cash payment
+- `card` - Credit/debit card payment
+- `qr` - QR code payment
+- `e_wallet` - Electronic wallet payment
+- `gift_card` - Gift card payment
+
+### Get Invoice
+**GET** `/api/invoices/{invoice_id}`
+- Requires authentication
+- Returns: Invoice object
+
+### Get Invoice by Order ID
+**GET** `/api/invoices/order/{order_id}`
+- Requires authentication
+- Returns: Invoice object
+
+### Update Invoice
+**PUT** `/api/invoices/{invoice_id}`
+- Requires authentication
+- JSON body: Invoice fields to update (including payment_type)
+- Returns: Updated invoice object
+
+### Delete Invoice
+**DELETE** `/api/invoices/{invoice_id}`
+- Requires authentication
+- Returns: Success message
 
 ## Analytics
 

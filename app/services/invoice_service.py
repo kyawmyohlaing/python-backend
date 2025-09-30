@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from models.invoice import Invoice, InvoiceCreate, InvoiceItem
-from models.order import Order, OrderItem
+from app.models.invoice import Invoice, InvoiceItem
+from app.models.order import Order
 import json
 from datetime import datetime
 from typing import List
@@ -39,8 +39,9 @@ class InvoiceService:
         
         # Parse order data
         try:
-            order_items_data = json.loads(order.order_data) if order.order_data else []
-        except json.JSONDecodeError:
+            order_data_value = getattr(order, 'order_data', None)
+            order_items_data = json.loads(order_data_value) if order_data_value else []
+        except (json.JSONDecodeError, Exception):
             order_items_data = []
         
         # Create invoice items from order items
@@ -57,6 +58,17 @@ class InvoiceService:
         # Generate unique invoice number
         invoice_number = InvoiceService.generate_invoice_number(db)
         
+        # Determine payment type from order or default to cash
+        payment_type = getattr(order, 'payment_type', 'cash')
+        if payment_type is None:
+            payment_type = 'cash'
+        
+        # Handle payment type conversion
+        # We need to safely extract the value from an enum or use the string directly
+        payment_type_value = str(payment_type)
+        # If it's an enum, it will convert to its string representation
+        # If it's already a string, it will remain unchanged
+        
         # Create invoice record
         db_invoice = Invoice(
             invoice_number=invoice_number,
@@ -69,7 +81,8 @@ class InvoiceService:
             subtotal=order.total or 0.0,
             tax=0.0,  # For simplicity, we'll assume 0 tax for now
             total=order.total or 0.0,
-            invoice_data=json.dumps([item.dict() for item in invoice_items])
+            invoice_data=json.dumps([item.dict() for item in invoice_items]),
+            payment_type=payment_type_value
         )
         
         db.add(db_invoice)
@@ -86,10 +99,11 @@ class InvoiceService:
             raise ValueError("Invoice not found")
         
         try:
-            items_data = json.loads(invoice.invoice_data) if invoice.invoice_data else []
+            invoice_data_value = getattr(invoice, 'invoice_data', None)
+            items_data = json.loads(invoice_data_value) if invoice_data_value else []
             invoice_items = [InvoiceItem(**item_data) for item_data in items_data]
             return invoice_items
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, Exception):
             return []
 
 # Create a singleton instance

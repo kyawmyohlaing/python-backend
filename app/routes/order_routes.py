@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 import json
@@ -8,25 +8,27 @@ from datetime import datetime
 try:
     # Try importing from app.module (local development)
     from app.database import get_db
-    from app.models.order import Order
-    from app.models.menu import MenuItem
-    from app.models.kitchen import KitchenOrder
+    from app.models.order import Order, OrderStatus, OrderType
+    from app.models.order_item import OrderItem as OrderItemModel
     from app.models.table import Table
-    from app.data.shared_data import sample_tables
-    from app.services.kot_service_simple import kot_service
     from app.schemas.order_schema import OrderCreate, OrderUpdate, OrderResponse, OrderItem
+    from app.models.user import User
+    from app.schemas.user_schema import UserResponse
+    from app.dependencies import get_current_user
+    from app.models.kitchen import KitchenOrder
     from app.schemas.kitchen_schema import KitchenOrderCreate, KitchenOrderResponse
     from app.schemas.table_schema import TableResponse
 except ImportError:
     # Try importing directly (Docker container)
     from database import get_db
-    from models.order import Order
-    from models.menu import MenuItem
-    from models.kitchen import KitchenOrder
+    from models.order import Order, OrderStatus, OrderType
+    from models.order_item import OrderItem as OrderItemModel
     from models.table import Table
-    from data.shared_data import sample_tables
-    from services.kot_service_simple import kot_service
     from schemas.order_schema import OrderCreate, OrderUpdate, OrderResponse, OrderItem
+    from models.user import User
+    from schemas.user_schema import UserResponse
+    from dependencies import get_current_user
+    from models.kitchen import KitchenOrder
     from schemas.kitchen_schema import KitchenOrderCreate, KitchenOrderResponse
     from schemas.table_schema import TableResponse
 
@@ -64,328 +66,172 @@ def order_model_to_response(order: Order) -> OrderResponse:
     # Handle order_type properly
     order_type_value = None
     if order.order_type is not None:
-        # If it's an enum, get its value, otherwise convert to string
-        if hasattr(order.order_type, 'value'):
-            order_type_value = order.order_type.value
-        else:
-            order_type_value = str(order.order_type)
+        order_type_value = order.order_type.value if hasattr(order.order_type, 'value') else str(order.order_type)
     
-    # Convert table_number to string - this is the key fix for the error
-    table_number_str = None
-    if order.table_number is not None:
-        table_number_str = str(order.table_number)
+    # Handle payment_type properly
+    payment_type_value = None
+    if order.payment_type is not None:
+        payment_type_value = order.payment_type.value if hasattr(order.payment_type, 'value') else str(order.payment_type)
+    else:
+        payment_type_value = "cash"
     
     return OrderResponse(
         id=order.id,
         order=order_item_objects,
-        total=order.total,
-        timestamp=order.created_at,
+        total=order.total or 0.0,
         table_id=order.table_id,
         customer_count=order.customer_count,
         special_requests=order.special_requests,
-        assigned_seats=assigned_seats,
+        timestamp=order.created_at or datetime.utcnow(),
         order_type=order_type_value,
-        table_number=table_number_str,  # This is the key fix
+        table_number=str(order.table_number) if order.table_number is not None else None,
         customer_name=order.customer_name,
         customer_phone=order.customer_phone,
         delivery_address=order.delivery_address,
-        modifiers=modifiers
+        assigned_seats=assigned_seats,
+        modifiers=modifiers,
+        payment_type=payment_type_value
     )
 
+@router.post("/", response_model=OrderResponse)
+def create_order(
+    order: OrderCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Create a new order.
+    """
+    # Convert order items to JSON string
+    order_data_json = json.dumps([item.dict() for item in order.order])
+    
+    # Convert modifiers to JSON string if provided
+    modifiers_json = json.dumps(order.modifiers) if order.modifiers else None
+    
+    # Convert assigned_seats to JSON string if provided
+    assigned_seats_json = json.dumps(order.assigned_seats) if order.assigned_seats else None
+    
+    # Convert payment_type to enum if provided
+    payment_type = order.payment_type
+    if payment_type:
+        # Validate payment type
+        valid_payment_types = ["cash", "card", "qr", "e_wallet", "gift_card"]
+        if payment_type not in valid_payment_types:
+            payment_type = "cash"  # Default to cash if invalid
+    
+    # Create new order
+    db_order = Order(
+        total=order.total,
+        order_data=order_data_json,
+        table_id=order.table_id,
+        customer_count=order.customer_count,
+        special_requests=order.special_requests,
+        created_by=current_user.id,
+        order_type=order.order_type,
+        table_number=order.table_number,
+        customer_name=order.customer_name,
+        customer_phone=order.customer_phone,
+        delivery_address=order.delivery_address,
+        modifiers=modifiers_json,
+        assigned_seats=assigned_seats_json,
+        payment_type=payment_type
+    )
+    
+    db.add(db_order)
+    db.commit()
+    db.refresh(db_order)
+    
+    return order_model_to_response(db_order)
+
 @router.get("/", response_model=List[OrderResponse])
-def get_orders(db: Session = Depends(get_db)):
-    """Get all orders from database"""
-    orders = db.query(Order).all()
+def get_orders(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retrieve all orders.
+    """
+    orders = db.query(Order).offset(skip).limit(limit).all()
     return [order_model_to_response(order) for order in orders]
 
 @router.get("/{order_id}", response_model=OrderResponse)
-def get_order(order_id: int, db: Session = Depends(get_db)):
-    """Get a specific order by ID from database"""
+def get_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retrieve a specific order by ID.
+    """
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     return order_model_to_response(order)
 
-@router.post("/", response_model=OrderResponse)
-def create_order(order: OrderCreate, db: Session = Depends(get_db)):
-    """Create a new order in database"""
-    try:
-        # Convert order items to JSON-serializable format
-        order_items_dict = [
-            {
-                "name": item.name,
-                "price": item.price,
-                "category": item.category,
-                "modifiers": item.modifiers or []
-            }
-            for item in order.order
-        ]
-        
-        # Convert table_number to integer if provided
-        table_number_int = None
-        if order.table_number is not None:
-            try:
-                table_number_int = int(order.table_number)
-            except ValueError:
-                # If conversion fails, keep it as None
-                pass
-        
-        # Create new order in database
-        db_order = Order(
-            total=order.total,
-            order_data=json.dumps(order_items_dict),
-            table_id=order.table_id,
-            customer_count=order.customer_count,
-            special_requests=order.special_requests,
-            assigned_seats=json.dumps(order.assigned_seats) if order.assigned_seats else None,
-            order_type=order.order_type,
-            table_number=table_number_int,
-            customer_name=order.customer_name,
-            customer_phone=order.customer_phone,
-            delivery_address=order.delivery_address,
-            modifiers=json.dumps(order.modifiers) if order.modifiers else None
-        )
-        
-        db.add(db_order)
-        db.commit()
-        db.refresh(db_order)
-        
-        # If this is a dine-in order with a table number, automatically assign the table
-        if db_order.order_type == "dine_in" and db_order.table_number:
-            # Look up the table by table number
-            table = db.query(Table).filter(Table.table_number == db_order.table_number).first()
-            if table:
-                # Assign the table to the order
-                table.is_occupied = True
-                table.current_order_id = db_order.id
-                table.status = "occupied"
-                
-                # Mark all seats as occupied and assign customer name from order
-                customer_name = getattr(db_order, 'customer_name', None)
-                if table.seats:
-                    for seat in table.seats:
-                        seat["status"] = "occupied"
-                        seat["customer_name"] = customer_name
-                
-                # Update the order's table_id to reference the actual table
-                db_order.table_id = table.id
-                
-                db.commit()
-                db.refresh(table)
-                db.refresh(db_order)
-        
-        # Convert to response format
-        response_order = order_model_to_response(db_order)
-        
-        # Automatically add the order to the kitchen (using database now)
-        kitchen_order = KitchenOrder(
-            order_id=db_order.id,
-            status="pending"
-        )
-        db.add(kitchen_order)
-        db.commit()
-        db.refresh(kitchen_order)
-        
-        # Automatically print KOT for the new order
-        try:
-            kot_service.print_kot_for_order(db_order.id)
-        except Exception as e:
-            # Log the error but don't fail the order creation
-            print(f"Warning: Failed to print KOT for order {db_order.id}: {str(e)}")
-        
-        return response_order
-    except Exception as e:
-        # Log the error and rollback the transaction
-        print(f"Error creating order: {str(e)}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
 @router.put("/{order_id}", response_model=OrderResponse)
-def update_order(order_id: int, order_update: OrderUpdate, db: Session = Depends(get_db)):
-    """Update an existing order in database"""
+def update_order(
+    order_id: int,
+    order_update: OrderUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update an existing order.
+    """
     db_order = db.query(Order).filter(Order.id == order_id).first()
     if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
     
     # Update order fields if provided
-    if order_update.order is not None:
-        order_items_dict = [
-            {
-                "name": item.name,
-                "price": item.price,
-                "category": item.category,
-                "modifiers": item.modifiers or []
-            }
-            for item in order_update.order
-        ]
-        db_order.order_data = json.dumps(order_items_dict)
+    update_data = order_update.dict(exclude_unset=True)
     
-    if order_update.total is not None:
-        db_order.total = order_update.total
+    # Handle special fields that need JSON conversion
+    if "order" in update_data and update_data["order"] is not None:
+        db_order.order_data = json.dumps([item.dict() for item in update_data["order"]])
+        # Remove from update_data to avoid double processing
+        del update_data["order"]
     
-    if order_update.table_id is not None:
-        # If table is being changed, update both old and new table statuses
-        if db_order.table_id and db_order.table_id != order_update.table_id:
-            # Release old table
-            old_table = db.query(Table).filter(Table.id == db_order.table_id).first()
-            if old_table:
-                old_table.is_occupied = False
-                old_table.current_order_id = None
-                old_table.status = "available"
-                # Release all seats
-                for i, seat in enumerate(old_table.seats):
-                    old_table.seats[i]["status"] = "available"
-                    old_table.seats[i]["customer_name"] = None
+    if "modifiers" in update_data and update_data["modifiers"] is not None:
+        db_order.modifiers = json.dumps(update_data["modifiers"])
+        del update_data["modifiers"]
         
-        # Assign new table
-        new_table = db.query(Table).filter(Table.id == order_update.table_id).first()
-        if new_table:
-            new_table.is_occupied = True
-            new_table.current_order_id = order_id
-            new_table.status = "occupied"
-            
-            # Assign seats if provided
-            if order_update.assigned_seats:
-                for seat_num in order_update.assigned_seats:
-                    if seat_num <= len(new_table.seats):
-                        new_table.seats[seat_num-1]["status"] = "occupied"
-        
-        db_order.table_id = order_update.table_id
+    if "assigned_seats" in update_data and update_data["assigned_seats"] is not None:
+        db_order.assigned_seats = json.dumps(update_data["assigned_seats"])
+        del update_data["assigned_seats"]
     
-    if order_update.customer_count is not None:
-        db_order.customer_count = order_update.customer_count
+    # Handle payment_type validation
+    if "payment_type" in update_data and update_data["payment_type"] is not None:
+        payment_type = update_data["payment_type"]
+        # Validate payment type
+        valid_payment_types = ["cash", "card", "qr", "e_wallet", "gift_card"]
+        if payment_type in valid_payment_types:
+            db_order.payment_type = payment_type
+        del update_data["payment_type"]
     
-    if order_update.special_requests is not None:
-        db_order.special_requests = order_update.special_requests
-    
-    if order_update.assigned_seats is not None:
-        db_order.assigned_seats = json.dumps(order_update.assigned_seats)
-    
-    # Update new order type fields if provided
-    if order_update.order_type is not None:
-        db_order.order_type = order_update.order_type
-    
-    if order_update.table_number is not None:
-        db_order.table_number = order_update.table_number
-    
-    if order_update.customer_name is not None:
-        db_order.customer_name = order_update.customer_name
-    
-    if order_update.customer_phone is not None:
-        db_order.customer_phone = order_update.customer_phone
-    
-    if order_update.delivery_address is not None:
-        db_order.delivery_address = order_update.delivery_address
-    
-    if order_update.modifiers is not None:
-        db_order.modifiers = json.dumps(order_update.modifiers)
+    # Update remaining fields
+    for key, value in update_data.items():
+        setattr(db_order, key, value)
     
     db.commit()
     db.refresh(db_order)
     
     return order_model_to_response(db_order)
 
-@router.put("/{order_id}/status", response_model=OrderResponse)
-def update_order_status(order_id: int, status_update: dict, db: Session = Depends(get_db)):
-    """Update the status of an order"""
+@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Delete an order.
+    """
     db_order = db.query(Order).filter(Order.id == order_id).first()
     if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
-    
-    # Convert to response format for table management
-    response_order = order_model_to_response(db_order)
-    
-    # Find the corresponding kitchen order (now using database)
-    kitchen_order = db.query(KitchenOrder).filter(KitchenOrder.order_id == order_id).first()
-    if kitchen_order:
-        # Validate status - only allow valid statuses
-        valid_statuses = ["pending", "preparing", "ready", "served"]
-        new_status = status_update.get("status")
-        if new_status not in valid_statuses:
-            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
-        
-        # Update the kitchen order status
-        kitchen_order.status = new_status
-        kitchen_order.updated_at = datetime.now()
-        
-        # If the order is marked as served, we might want to release the table
-        if new_status == "served" and response_order.order_type == "dine_in":
-            # Release the table
-            if response_order.table_id:
-                table = db.query(Table).filter(Table.id == response_order.table_id).first()
-                if table:
-                    table.is_occupied = False
-                    table.current_order_id = None
-                    table.status = "available"
-                    # Release all seats
-                    for i, seat in enumerate(table.seats):
-                        table.seats[i]["status"] = "available"
-                        table.seats[i]["customer_name"] = None
-    
-    db.commit()
-    if kitchen_order:
-        db.refresh(kitchen_order)
-    
-    return order_model_to_response(db_order)
-
-@router.delete("/{order_id}")
-def delete_order(order_id: int, db: Session = Depends(get_db)):
-    """Delete an order from database"""
-    db_order = db.query(Order).filter(Order.id == order_id).first()
-    if not db_order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    # Convert to response format for table management
-    response_order = order_model_to_response(db_order)
-    
-    # If order has an assigned table, release it
-    if response_order.table_id:
-        table = db.query(Table).filter(Table.id == response_order.table_id).first()
-        if table:
-            table.is_occupied = False
-            table.current_order_id = None
-            table.status = "available"
-            # Release all seats
-            for i, seat in enumerate(table.seats):
-                table.seats[i]["status"] = "available"
-                table.seats[i]["customer_name"] = None
     
     db.delete(db_order)
     db.commit()
-    return {"message": "Order deleted successfully"}
-
-@router.post("/{order_id}/mark-served")
-def mark_order_as_served(order_id: int, db: Session = Depends(get_db)):
-    """Mark an order as served and release associated resources"""
-    db_order = db.query(Order).filter(Order.id == order_id).first()
-    if not db_order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    # Convert to response format for table management
-    response_order = order_model_to_response(db_order)
-    
-    # Find the corresponding kitchen order (now using database)
-    kitchen_order = db.query(KitchenOrder).filter(KitchenOrder.order_id == order_id).first()
-    if kitchen_order:
-        # Update the kitchen order status to served
-        kitchen_order.status = "served"
-        kitchen_order.updated_at = datetime.now()
-    
-    # If it's a dine_in order, release the table
-    if response_order.order_type == "dine_in":
-        if response_order.table_id:
-            table = db.query(Table).filter(Table.id == response_order.table_id).first()
-            if table:
-                table.is_occupied = False
-                table.current_order_id = None
-                table.status = "available"
-                # Release all seats
-                for i, seat in enumerate(table.seats):
-                    table.seats[i]["status"] = "available"
-                    table.seats[i]["customer_name"] = None
-    
-    db.commit()
-    if kitchen_order:
-        db.refresh(kitchen_order)
-    
-    return {"message": "Order marked as served", "order_id": order_id}
+    return

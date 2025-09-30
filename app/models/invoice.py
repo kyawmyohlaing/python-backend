@@ -30,6 +30,8 @@ class Invoice(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     # Store invoice items as JSON string
     invoice_data = Column(Text)
+    # Payment type field
+    payment_type = Column(String, default="cash")
 
 # Pydantic models for API validation
 class InvoiceItem(BaseModel):
@@ -49,6 +51,7 @@ class InvoiceBase(BaseModel):
     tax: float = 0.0
     total: float
     invoice_items: List[InvoiceItem]
+    payment_type: Optional[str] = "cash"
 
 class InvoiceCreate(InvoiceBase):
     pass
@@ -61,6 +64,7 @@ class InvoiceUpdate(BaseModel):
     tax: Optional[float] = None
     total: Optional[float] = None
     invoice_items: Optional[List[InvoiceItem]] = None
+    payment_type: Optional[str] = None
 
 class InvoiceResponse(InvoiceBase):
     id: int
@@ -97,6 +101,7 @@ class InvoiceResponse(InvoiceBase):
             tax=obj.tax,
             total=obj.total,
             invoice_items=invoice_items,
+            payment_type=obj.payment_type,
             created_at=obj.created_at,
             updated_at=obj.updated_at
         )

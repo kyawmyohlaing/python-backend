@@ -17,6 +17,9 @@ until python -c "import socket; socket.create_connection(('db', 5432), timeout=5
 done
 echo "Postgres ready!"
 
+# Change to the app directory where the main.py file is located
+cd /app
+
 # Run Alembic migrations
 echo "Running Alembic migrations..."
 # Change to the migrations directory where alembic.ini is located
@@ -34,4 +37,4 @@ python init_db.py
 
 # Start server
 echo "Starting server..."
-exec "$@"
+python app/main.py

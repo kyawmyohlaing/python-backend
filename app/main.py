@@ -8,7 +8,7 @@ import os
 # Handle imports for both local development and Docker container environments
 try:
     # Try importing from app.module (local development)
-    from app.models import user, menu, order, order_item, invoice, kitchen, table, stock
+    from app.models import User, MenuItem, Order, OrderItem, Invoice, KitchenOrder, Table, Ingredient, StockTransaction
     # Import the updated router
     from app.routes.user_routes import router as user_router
     from app.routes.menu_routes import router as menu_router
@@ -24,7 +24,7 @@ try:
 except ImportError:
     # Try importing directly (Docker container)
     try:
-        from models import user, menu, order, order_item, invoice, kitchen, table, stock
+        from models import User, MenuItem, Order, OrderItem, Invoice, KitchenOrder, Table, Ingredient, StockTransaction
         from routes.user_routes import router as user_router
         from routes.menu_routes import router as menu_router
         from routes.order_routes import router as order_router
