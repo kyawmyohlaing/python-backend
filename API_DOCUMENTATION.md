@@ -51,6 +51,7 @@ Authorization: Bearer <token>
 
 ### List Menu Items
 **GET** `/api/menu`
+- Requires authentication
 - Returns: List of all menu items
 
 ### Create Menu Item
@@ -165,6 +166,43 @@ Authorization: Bearer <token>
 - Requires authentication
 - Returns: Success message
 
+## Payment Management
+
+### Process Payment
+**POST** `/api/payments/process`
+- Requires authentication
+- JSON body: order_id, payment_type, amount, payment_details
+- Returns: Payment processing result
+
+**Payment Types:**
+- `cash` - Cash payment
+- `card` - Credit/debit card payment
+- `qr` - QR code payment
+- `e_wallet` - Electronic wallet payment
+- `gift_card` - Gift card payment
+
+### Refund Payment
+**POST** `/api/payments/refund`
+- Requires authentication
+- JSON body: order_id, reason, refund_details
+- Returns: Refund processing result
+
+### Get Payment Methods
+**GET** `/api/payments/methods`
+- Requires authentication
+- Returns: Available payment methods
+
+### Get Payment Summary
+**POST** `/api/payments/summary`
+- Requires authentication
+- JSON body: start_date, end_date (optional)
+- Returns: Payment summary statistics
+
+### Get Order Payment Status
+**GET** `/api/payments/order/{order_id}`
+- Requires authentication
+- Returns: Payment status for the specified order
+
 ## Analytics
 
 ### Sales by Employee
@@ -225,4 +263,3 @@ Error responses follow the format:
 {
   "detail": "Error message"
 }
-```

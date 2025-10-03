@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Orders API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .button {
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #1565c0;
+        }
+        .button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background-color: #e8f5e9;
+            color: #388e3c;
+            border: 1px solid #c8e6c9;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #d32f2f;
+            border: 1px solid #ffcdd2;
+        }
+        .info {
+            background-color: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #bbdefb;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Orders API</h1>
+    
+    <div class="test-section">
+        <h2>Login</h2>
+        <button class="button" onclick="login()">Login as Manager</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Get Orders (with Auth)</h2>
+        <button class="button" onclick="getOrders()" id="getOrdersBtn" disabled>Get Orders</button>
+        <div id="ordersResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Get Orders (without Auth)</h2>
+        <button class="button" onclick="getOrdersWithoutAuth()">Get Orders (No Auth)</button>
+        <div id="ordersNoAuthResult" class="result"></div>
+    </div>
+
+    <script>
+        let authToken = null;
+        
+        async function login() {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.className = 'result info';
+            resultDiv.innerHTML = 'Logging in...';
+            
+            try {
+                const response = await fetch('http://localhost:8088/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        username: 'manager',
+                        password: 'manager123'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.access_token;
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `Login successful! Token: ${authToken.substring(0, 20)}...`;
+                    
+                    // Enable the get orders button
+                    document.getElementById('getOrdersBtn').disabled = false;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `Login failed with status ${response.status}: ${errorText}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `Login failed with error: ${error.message}`;
+            }
+        }
+        
+        async function getOrders() {
+            const resultDiv = document.getElementById('ordersResult');
+            resultDiv.className = 'result info';
+            resultDiv.innerHTML = 'Fetching orders...';
+            
+            if (!authToken) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = 'Please login first';
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8088/api/orders', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `Orders retrieved successfully! Found ${data.length} orders.`;
+                    
+                    // Display orders in a table
+                    if (data.length > 0) {
+                        let tableHtml = '<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Type</th><th>Timestamp</th></tr></thead><tbody>';
+                        // Show first 5 orders
+                        for (let i = 0; i < Math.min(5, data.length); i++) {
+                            const order = data[i];
+                            tableHtml += `<tr>
+                                <td>${order.id || 'N/A'}</td>
+                                <td>${order.customer_name || 'N/A'}</td>
+                                <td>$${order.total ? order.total.toFixed(2) : '0.00'}</td>
+                                <td>${order.order_type || 'N/A'}</td>
+                                <td>${order.timestamp ? new Date(order.timestamp).toLocaleString() : 'N/A'}</td>
+                            </tr>`;
+                        }
+                        tableHtml += '</tbody></table>';
+                        if (data.length > 5) {
+                            tableHtml += `<p>... and ${data.length - 5} more orders</p>`;
+                        }
+                        resultDiv.innerHTML += tableHtml;
+                    }
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `Orders request failed with status ${response.status}: ${errorText}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `Orders request failed with error: ${error.message}`;
+            }
+        }
+        
+        async function getOrdersWithoutAuth() {
+            const resultDiv = document.getElementById('ordersNoAuthResult');
+            resultDiv.className = 'result info';
+            resultDiv.innerHTML = 'Fetching orders without auth...';
+            
+            try {
+                const response = await fetch('http://localhost:8088/api/orders', {
+                    method: 'GET'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `Orders retrieved successfully! Found ${data.length} orders.`;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `Orders request failed with status ${response.status}: ${errorText}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `Orders request failed with error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

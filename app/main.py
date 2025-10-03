@@ -19,6 +19,7 @@ try:
     from app.routes.bar_routes import router as bar_router
     from app.routes.stock_routes import router as stock_router
     from app.routes.analytics_routes import router as analytics_router  # Add analytics router
+    from app.routes.payment_routes import router as payment_router  # Add payment router
     from app.database import Base, engine
     from app.config import Config
 except ImportError:
@@ -34,6 +35,7 @@ except ImportError:
         from routes.bar_routes import router as bar_router
         from routes.stock_routes import router as stock_router
         from routes.analytics_routes import router as analytics_router  # Add analytics router
+        from routes.payment_routes import router as payment_router  # Add payment router
         from database import Base, engine
         from config import Config
     except ImportError:
@@ -65,6 +67,7 @@ app.include_router(table_router)
 app.include_router(invoice_router)
 app.include_router(stock_router)
 app.include_router(analytics_router)  # Include analytics router
+app.include_router(payment_router)  # Include payment router
 
 @app.get("/")
 def root():

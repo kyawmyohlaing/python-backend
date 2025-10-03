@@ -72,6 +72,13 @@ class Order(Base):
     
     # Payment type field
     payment_type = Column(Enum(PaymentType), default=PaymentType.CASH)
+    
+    # Additional payment-related fields
+    payment_status = Column(String, default="pending")
+    paid_at = Column(DateTime, nullable=True)
+    payment_reference = Column(String, nullable=True)
+    refund_status = Column(String, nullable=True)
+    refunded_at = Column(DateTime, nullable=True)
 
     # Relationships (using string references to avoid circular imports)
     order_items = relationship("OrderItem", back_populates="order", lazy="select")

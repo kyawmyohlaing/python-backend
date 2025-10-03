@@ -8,24 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Comprehensive documentation files
-- Setup guide
-- API documentation
-- Development guide
-- Troubleshooting guide
-- FAQ
-- Changelog
-- Documentation for type checking issues in UserService
+- Comprehensive payment processing functionality
+  - Payment service for handling payment operations
+  - Payment routes with RESTful API endpoints
+  - Payment schemas for request/response validation
+  - Enhanced Order model with payment-related fields
+  - Database migration for new payment fields
+  - Comprehensive payment API documentation
+  - Payment implementation summary documentation
+  - Payment functionality tests
+- Multiple payment types support (cash, card, QR code, e-wallet, gift card)
+- Payment processing and refund handling
+- Payment summary and statistics generation
+- Payment method information retrieval
 
 ### Changed
-- Improved README.md with better structure and information
-- Enhanced Makefile with additional commands
-- Updated Docker configuration for better performance
+- Updated API documentation to include payment endpoints
+- Updated project summary to include payment functionality
+- Enhanced Order model with additional payment-related fields
 
 ### Fixed
 - Minor issues in example files
 - Documentation inconsistencies
-- Type checking issue in UserService.update_user_progress method where Column[str] was being passed to json.loads instead of the actual string value
 
 ## [1.0.0] - 2025-09-05
 

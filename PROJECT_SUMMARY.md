@@ -78,6 +78,7 @@ fastapi_backend/
 - Analytics endpoints for sales reports (daily, weekly, monthly)
 - Employee performance tracking
 - Multiple payment types support (cash, card, QR, e-wallet, gift card)
+- Comprehensive payment processing API (process payments, refunds, get payment methods, payment summaries)
 
 ### Seeded Example User
 - Email: user@example.com
@@ -118,11 +119,25 @@ make test      # Run tests
 3. **Access** - Use JWT token in Authorization header for protected routes
 4. **Profile** - Retrieve user profile information
 
+## 💳 Payment Functionality
+
+The system now includes comprehensive payment processing capabilities:
+
+- **Multiple Payment Methods**: Cash, Credit/Debit Card, QR Code, Electronic Wallet, Gift Card
+- **Payment Processing**: Process payments for orders with validation
+- **Refund Handling**: Process refunds for paid orders
+- **Payment Validation**: Automatic validation of payment types
+- **Invoice Integration**: Automatic invoice creation when processing payments
+- **Payment Statistics**: Generate payment summaries and reports
+- **Security**: All endpoints require authentication
+- **Extensibility**: Easy to add new payment methods
+
 ## 🧪 Testing
 
 - Unit tests for user service functions
 - Both SQLite (in-memory) and PostgreSQL testing support
 - Test runner script for easy execution
+- Comprehensive payment functionality tests
 
 ## 📦 Dependencies
 
@@ -135,4 +150,4 @@ make test      # Run tests
 - passlib[bcrypt]
 - python-jose[cryptography]
 
-This template provides a solid foundation for building scalable, secure web APIs with Python and FastAPI.
+This template provides a solid foundation for building scalable, secure web APIs with Python and FastAPI, now with comprehensive payment processing capabilities.

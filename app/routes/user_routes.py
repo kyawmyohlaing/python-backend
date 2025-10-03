@@ -11,6 +11,7 @@ try:
     from app.services.user_service import UserService
     from app.models.user import User  # Import the User model
     from app.security import create_access_token, decode_access_token
+    from app.dependencies import get_current_user  # Use shared dependency
 except ImportError:
     # Try importing directly (Docker container)
     from database import get_db
@@ -18,6 +19,7 @@ except ImportError:
     from services.user_service import UserService
     from models.user import User  # Import the User model
     from security import create_access_token, decode_access_token
+    from dependencies import get_current_user  # Use shared dependency
 
 # Change the prefix to match what the frontend expects
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -45,52 +47,37 @@ def login_user(
     token = create_access_token({"sub": str(user.id), "role": user.role.value})
     return {"access_token": token, "token_type": "bearer"}
 
-# Current user
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-    try:
-        user_id = int(user_id)
-    except (ValueError, TypeError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user ID in token")
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    return user
+# Remove the duplicate get_current_user function - using the shared one from dependencies.py
 
 # Protected route example
 @router.get("/me", response_model=UserResponse)
 def read_current_user(current_user = Depends(get_current_user)):
     return current_user
 
-# List all users
+# List all users (protected)
 @router.get("/users", response_model=List[UserResponse])
-def list_users(db: Session = Depends(get_db)):
+def list_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return UserService.get_users(db)
 
-# Get user by ID
+# Get user by ID (protected)
 @router.get("/users/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user = UserService.get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
 
-# Update user
+# Update user (protected)
 @router.put("/users/{user_id}", response_model=UserResponse)
-def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db)):
+def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user = UserService.update_user(db, user_id, user_update)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
 
-# Delete user
+# Delete user (protected)
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     success = UserService.delete_user(db, user_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

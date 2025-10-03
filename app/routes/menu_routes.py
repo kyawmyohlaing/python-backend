@@ -9,11 +9,17 @@ try:
     from app.database import get_db
     from app.models.menu import MenuItem
     from app.schemas.menu_schema import MenuItemCreate, MenuItemResponse
+    from app.dependencies import get_current_user  # Add authentication dependency
+    from app.models.user import User, UserRole  # Add user models
+    from app.dependencies import require_role  # Add role dependency
 except ImportError:
     # Try importing directly (Docker container)
     from database import get_db
     from models.menu import MenuItem
     from schemas.menu_schema import MenuItemCreate, MenuItemResponse
+    from dependencies import get_current_user  # Add authentication dependency
+    from models.user import User, UserRole  # Add user models
+    from dependencies import require_role  # Add role dependency
 
 router = APIRouter(prefix="/api/menu", tags=["Menu"])
 
@@ -24,7 +30,11 @@ def get_menu_items(db: Session = Depends(get_db)):
     return menu_items
 
 @router.post("/", response_model=MenuItemResponse, status_code=status.HTTP_201_CREATED)
-def create_menu_item(menu_item: MenuItemCreate, db: Session = Depends(get_db)):
+def create_menu_item(
+    menu_item: MenuItemCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # Add authentication
+):
     """Create a new menu item"""
     # Check if item with same name already exists
     existing_item = db.query(MenuItem).filter(MenuItem.name == menu_item.name).first()
@@ -61,7 +71,11 @@ def get_menu_items_by_category(category: str, db: Session = Depends(get_db)):
     return menu_items
 
 @router.post("/batch", response_model=List[MenuItemResponse])
-def create_menu_items_batch(menu_items: List[MenuItemCreate], db: Session = Depends(get_db)):
+def create_menu_items_batch(
+    menu_items: List[MenuItemCreate], 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # Add authentication
+):
     """Create multiple menu items in batch"""
     created_items = []
     errors = []
@@ -111,7 +125,12 @@ def get_menu_item(item_id: int, db: Session = Depends(get_db)):
     return db_item
 
 @router.put("/{item_id}", response_model=MenuItemResponse)
-def update_menu_item(item_id: int, menu_item: MenuItemCreate, db: Session = Depends(get_db)):
+def update_menu_item(
+    item_id: int, 
+    menu_item: MenuItemCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # Add authentication
+):
     """Update a menu item"""
     db_item = db.query(MenuItem).filter(MenuItem.id == item_id).first()
     if db_item is None:
@@ -143,7 +162,11 @@ def update_menu_item(item_id: int, menu_item: MenuItemCreate, db: Session = Depe
         )
 
 @router.delete("/{item_id}")
-def delete_menu_item(item_id: int, db: Session = Depends(get_db)):
+def delete_menu_item(
+    item_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # Add authentication
+):
     """Delete a menu item"""
     db_item = db.query(MenuItem).filter(MenuItem.id == item_id).first()
     if db_item is None:

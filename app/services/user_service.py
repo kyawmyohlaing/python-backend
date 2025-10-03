@@ -108,15 +108,27 @@ class UserService:
         """
         Authenticate user with either email or username
         """
+        print(f"DEBUG: Authenticating user with identifier: {identifier}")
+        
         # Try to find user by email first
         user = UserService.get_user_by_email(db, identifier)
+        print(f"DEBUG: User found by email: {user is not None}")
         
         # If not found by email, try to find by username
         if not user:
             user = UserService.get_user_by_username(db, identifier)
-            
+            print(f"DEBUG: User found by username: {user is not None}")
+        
         # If user not found or password doesn't match, return None
-        if not user or not verify_password(password, str(user.hashed_password)):
+        if not user:
+            print("DEBUG: User not found")
             return None
             
+        print(f"DEBUG: Verifying password for user {user.username}")
+        password_valid = verify_password(password, str(user.hashed_password))
+        print(f"DEBUG: Password valid: {password_valid}")
+        
+        if not password_valid:
+            return None
+
         return user
