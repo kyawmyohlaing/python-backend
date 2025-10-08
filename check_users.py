@@ -1,35 +1,34 @@
-#!/usr/bin/env python3
-"""
-Script to check existing users in the database with the correct schema
-"""
-
 import sqlite3
 import os
 
-def check_users():
-    """Check existing users in the database"""
-    try:
-        # Connect to the SQLite database
-        conn = sqlite3.connect('app/dev.db')
-        cursor = conn.cursor()
-        
-        # Get all users (using the new schema)
-        cursor.execute('SELECT id, username, email, role FROM users')
+# Connect to the database
+db_path = os.path.join(os.path.dirname(__file__), 'app', 'dev.db')
+print(f"Database path: {db_path}")
+
+try:
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Check if users table exists
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users';")
+    table_exists = cursor.fetchone()
+    
+    if table_exists:
+        print("Users table exists")
+        # Get all users
+        cursor.execute("SELECT id, username, email, role FROM users;")
         users = cursor.fetchall()
         
-        print(f"Found {len(users)} users in the database:")
+        if users:
+            print("Existing users:")
+            for user in users:
+                print(f"  ID: {user[0]}, Username: {user[1]}, Email: {user[2]}, Role: {user[3]}")
+        else:
+            print("No users found in the database")
+    else:
+        print("Users table does not exist")
         
-        for user in users:
-            print(f"  - ID: {user[0]}")
-            print(f"    Username: {user[1]}")
-            print(f"    Email: {user[2]}")
-            print(f"    Role: {user[3]}")
-            print()
-            
-        conn.close()
-                
-    except Exception as e:
-        print(f"Error connecting to database: {e}")
-
-if __name__ == "__main__":
-    check_users()
+    conn.close()
+    
+except Exception as e:
+    print(f"Error accessing database: {e}")

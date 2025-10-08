@@ -14,6 +14,21 @@ os.environ['DATABASE_URL'] = 'sqlite:///./dev.db'
 # Add the app directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
 
+def truncate_password_for_bcrypt(password: str) -> str:
+    """
+    Truncate password to 72 bytes for bcrypt compatibility.
+    Bcrypt has a limitation where only the first 72 bytes are used.
+    """
+    MAX_PASSWORD_LENGTH = 72
+    if isinstance(password, str):
+        # Encode to bytes to check actual byte length
+        password_bytes = password.encode('utf-8')
+        if len(password_bytes) > MAX_PASSWORD_LENGTH:
+            # Truncate to 72 bytes and decode back to string
+            truncated_bytes = password_bytes[:MAX_PASSWORD_LENGTH]
+            return truncated_bytes.decode('utf-8', errors='ignore')
+    return password
+
 def create_test_user():
     """Create a test user"""
     db = None
@@ -37,8 +52,9 @@ def create_test_user():
             print("User 'admin' already exists")
             return True
         
-        # Create new user
-        hashed_password = pwd_context.hash("admin")
+        # Create new user with truncated password
+        truncated_password = truncate_password_for_bcrypt("admin")
+        hashed_password = pwd_context.hash(truncated_password)
         test_user = User(
             username="admin",
             email="admin@example.com",

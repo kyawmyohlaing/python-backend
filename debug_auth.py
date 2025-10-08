@@ -1,39 +1,48 @@
-#!/usr/bin/env python3
-"""
-Debug authentication issues
-"""
+import sqlite3
+import os
+from app.security import verify_password, hash_password
 
-import requests
-import json
+# Connect to the database
+db_path = os.path.join(os.path.dirname(__file__), 'app', 'dev.db')
+print(f"Database path: {db_path}")
 
-def debug_auth():
-    """Debug authentication issues"""
-    print("Debugging authentication...")
+try:
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
     
-    # Configuration
-    BASE_URL = "http://localhost:8088"
-    AUTH_ENDPOINT = f"{BASE_URL}/api/auth/login"
+    # Get the manager user
+    cursor.execute("SELECT id, username, email, hashed_password, role FROM users WHERE username = 'manager';")
+    user = cursor.fetchone()
     
-    # Test different credential combinations
-    test_credentials = [
-        {"username": "admin", "password": "admin123"},
-        {"username": "admin@example.com", "password": "admin123"},
-        {"username": "manager", "password": "manager123"},
-        {"username": "manager@example.com", "password": "manager123"},
-    ]
+    if user:
+        print("Manager user found:")
+        print(f"  ID: {user[0]}")
+        print(f"  Username: {user[1]}")
+        print(f"  Email: {user[2]}")
+        print(f"  Role: {user[4]}")
+        print(f"  Hashed Password: {user[3]}")
+        
+        # Test password verification
+        test_password = "manager123"
+        print(f"\nTesting password verification with '{test_password}':")
+        
+        # Verify the password
+        is_valid = verify_password(test_password, user[3])
+        print(f"Password valid: {is_valid}")
+        
+        # Test hashing the same password
+        hashed_test = hash_password(test_password)
+        print(f"Hashed test password: {hashed_test}")
+        
+        # Verify with the new hash
+        is_valid_new = verify_password(test_password, hashed_test)
+        print(f"New hash verification: {is_valid_new}")
+    else:
+        print("Manager user not found")
+        
+    conn.close()
     
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-    
-    for creds in test_credentials:
-        print(f"\nTesting with username: {creds['username']}")
-        try:
-            response = requests.post(AUTH_ENDPOINT, data=creds, headers=headers)
-            print(f"Status Code: {response.status_code}")
-            print(f"Response: {response.text}")
-        except Exception as e:
-            print(f"Error: {e}")
-
-if __name__ == "__main__":
-    debug_auth()
+except Exception as e:
+    print(f"Error accessing database: {e}")
+    import traceback
+    traceback.print_exc()

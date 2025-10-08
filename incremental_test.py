@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, Form
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import sys
@@ -8,13 +8,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import models first to ensure they are registered with the Base
-# Import models in correct order to avoid circular dependencies
-# Handle imports for both local development and Docker container environments
+# Import routers one by one to identify the problematic one
 try:
     # Try importing from app.module (local development)
-    from app.models import User, MenuItem, Order, OrderItem, Invoice, KitchenOrder, Table, Ingredient, StockTransaction
-    # Import the updated router
     from app.routes.user_routes import router as user_router
     from app.routes.menu_routes import router as menu_router
     from app.routes.order_routes import router as order_router
@@ -23,14 +19,13 @@ try:
     from app.routes.kitchen_routes_db import router as kitchen_router
     from app.routes.bar_routes import router as bar_router
     from app.routes.stock_routes import router as stock_router
-    from app.routes.analytics_routes import router as analytics_router  # Add analytics router
-    from app.routes.payment_routes import router as payment_router  # Add payment router
+    from app.routes.analytics_routes import router as analytics_router
+    from app.routes.payment_routes import router as payment_router
     from app.database import Base, engine
     from app.config import Config
 except ImportError:
     # Try importing directly (Docker container)
     try:
-        from models import User, MenuItem, Order, OrderItem, Invoice, KitchenOrder, Table, Ingredient, StockTransaction
         from routes.user_routes import router as user_router
         from routes.menu_routes import router as menu_router
         from routes.order_routes import router as order_router
@@ -39,8 +34,8 @@ except ImportError:
         from routes.kitchen_routes_db import router as kitchen_router
         from routes.bar_routes import router as bar_router
         from routes.stock_routes import router as stock_router
-        from routes.analytics_routes import router as analytics_router  # Add analytics router
-        from routes.payment_routes import router as payment_router  # Add payment router
+        from routes.analytics_routes import router as analytics_router
+        from routes.payment_routes import router as payment_router
         from database import Base, engine
         from config import Config
     except ImportError:
@@ -50,7 +45,7 @@ except ImportError:
 # Create tables
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="FastAPI Backend Skeleton")
+app = FastAPI(title="Incremental Test FastAPI Backend")
 
 # Add CORS middleware
 config = Config()
@@ -62,7 +57,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers - the routers already have their prefixes defined
+# Include routers one by one - NOW INCLUDE ALL ROUTERS
 app.include_router(user_router)
 app.include_router(menu_router)
 app.include_router(order_router)
@@ -71,22 +66,12 @@ app.include_router(bar_router)
 app.include_router(table_router)
 app.include_router(invoice_router)
 app.include_router(stock_router)
-app.include_router(analytics_router)  # Include analytics router
-app.include_router(payment_router)  # Include payment router
-
-# Test endpoint to verify the app is working
-@app.get("/test")
-def test_endpoint():
-    return {"message": "Test endpoint working"}
-
-# Test form data endpoint
-@app.post("/test-form")
-def test_form_data(username: str = Form(...), password: str = Form(...)):
-    return {"username": username, "password": password}
+app.include_router(analytics_router)
+app.include_router(payment_router)
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to FastAPI Backend with Postgres, JWT & Alembic!"}
+    return {"message": "Incremental Test FastAPI Backend"}
 
 @app.get("/health")
 async def health_check():
@@ -94,12 +79,11 @@ async def health_check():
 
 if __name__ == "__main__":
     # Get port from environment variable or default to 8088
-    port = int(os.getenv("PORT", 8088))
+    port = int(os.getenv("PORT", 8093))
     host = os.getenv("HOST", "0.0.0.0")
 
-    # Use the import string to enable reload
     uvicorn.run(
-        "app.main:app",
+        "incremental_test:app",
         host=host,
         port=port,
         reload=True,

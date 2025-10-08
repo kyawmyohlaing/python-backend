@@ -13,21 +13,38 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 class Config:
     """Configuration class for the application"""
     
-    # Database settings (example values)
-    # Primary PostgreSQL database
-    # When running in Docker, we need to use the service name 'db' instead of 'localhost'
-    # Check if we're running in Docker by checking for the .dockerenv file or specific environment variables
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb")
-    # Check if we're in Docker by checking for the .dockerenv file or specific environment variables
-    is_in_docker_container = os.path.exists('/.dockerenv') or 'HOSTNAME' in os.environ
-    if is_in_docker_container:
-        # We're in Docker, replace localhost/127.0.0.1 with db service name
+    # Determine if we're running in Docker
+    @staticmethod
+    def is_running_in_docker():
+        """Check if the application is running in a Docker container"""
+        return os.path.exists('/.dockerenv') or 'HOSTNAME' in os.environ
+    
+    # Database settings
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    
+    # If no DATABASE_URL is set, determine the appropriate default
+    if not DATABASE_URL:
+        # Check environment
+        env = os.getenv('ENVIRONMENT', 'development')
+        
+        if is_running_in_docker():
+            # In Docker, use PostgreSQL with 'db' service
+            DATABASE_URL = "postgresql://postgres:password@db:5432/mydb"
+        else:
+            # Local development, use SQLite
+            if env == 'testing':
+                DATABASE_URL = "sqlite:///./test.db"
+            elif env == 'production':
+                DATABASE_URL = "postgresql://user:password@localhost/prod_db"
+            else:
+                DATABASE_URL = "sqlite:///./app/dev.db"
+    
+    # Special handling for Docker - ensure we're using the 'db' service
+    if is_running_in_docker() and DATABASE_URL:
+        # Replace localhost/127.0.0.1 with 'db' service name for Docker
         DATABASE_URL = DATABASE_URL.replace('127.0.0.1', 'db').replace('localhost', 'db')
     
     DATABASE_POOL_SIZE: int = int(os.getenv("DATABASE_POOL_SIZE", "10"))
-    
-    # SQLite reference (kept for reference)
-    SQLITE_DATABASE_URL: str = "sqlite:///./mydb.db"
     
     # Security settings
     SECRET_KEY: str = SECRET_KEY  # Use the validated module-level SECRET_KEY
@@ -44,32 +61,14 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG: bool = True
-    DATABASE_URL: str = os.getenv("DEV_DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb")
-    # Check if we're in Docker by checking for the .dockerenv file or specific environment variables
-    is_in_docker_container = os.path.exists('/.dockerenv') or 'HOSTNAME' in os.environ
-    if is_in_docker_container:
-        # We're in Docker, replace localhost/127.0.0.1 with db service name
-        DATABASE_URL = DATABASE_URL.replace('127.0.0.1', 'db').replace('localhost', 'db')
 
 class ProductionConfig(Config):
     """Production configuration"""
     DEBUG: bool = False
-    DATABASE_URL: str = os.getenv("PROD_DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb_prod")
-    # Check if we're in Docker by checking for the .dockerenv file or specific environment variables
-    is_in_docker_container = os.path.exists('/.dockerenv') or 'HOSTNAME' in os.environ
-    if is_in_docker_container:
-        # We're in Docker, replace localhost/127.0.0.1 with db service name
-        DATABASE_URL = DATABASE_URL.replace('127.0.0.1', 'db').replace('localhost', 'db')
 
 class TestingConfig(Config):
     """Testing configuration"""
     TESTING: bool = True
-    DATABASE_URL: str = os.getenv("TEST_DATABASE_URL", "postgresql://postgres:password@localhost:5432/mydb_test")
-    # Check if we're in Docker by checking for the .dockerenv file or specific environment variables
-    is_in_docker_container = os.path.exists('/.dockerenv') or 'HOSTNAME' in os.environ
-    if is_in_docker_container:
-        # We're in Docker, replace localhost/127.0.0.1 with db service name
-        DATABASE_URL = DATABASE_URL.replace('127.0.0.1', 'db').replace('localhost', 'db')
 
 # Configuration dictionary
 config_dict = {

@@ -18,6 +18,21 @@ from app.models.menu import MenuItem
 from app.models.user import User, UserRole
 from app.database import Base
 
+def truncate_password_for_bcrypt(password: str) -> str:
+    """
+    Truncate password to 72 bytes for bcrypt compatibility.
+    Bcrypt has a limitation where only the first 72 bytes are used.
+    """
+    MAX_PASSWORD_LENGTH = 72
+    if isinstance(password, str):
+        # Encode to bytes to check actual byte length
+        password_bytes = password.encode('utf-8')
+        if len(password_bytes) > MAX_PASSWORD_LENGTH:
+            # Truncate to 72 bytes and decode back to string
+            truncated_bytes = password_bytes[:MAX_PASSWORD_LENGTH]
+            return truncated_bytes.decode('utf-8', errors='ignore')
+    return password
+
 def init_local_db():
     """Initialize the local SQLite database"""
     # Use the local SQLite database
@@ -73,19 +88,19 @@ def init_local_db():
                     User(
                         username='admin',
                         email='admin@example.com',
-                        hashed_password=pwd_context.hash('admin123'),
+                        hashed_password=pwd_context.hash(truncate_password_for_bcrypt('admin123')),
                         role=UserRole.ADMIN
                     ),
                     User(
                         username='manager',
                         email='manager@example.com',
-                        hashed_password=pwd_context.hash('manager123'),
+                        hashed_password=pwd_context.hash(truncate_password_for_bcrypt('manager123')),
                         role=UserRole.MANAGER
                     ),
                     User(
                         username='waiter',
                         email='waiter@example.com',
-                        hashed_password=pwd_context.hash('waiter123'),
+                        hashed_password=pwd_context.hash(truncate_password_for_bcrypt('waiter123')),
                         role=UserRole.WAITER
                     )
                 ]

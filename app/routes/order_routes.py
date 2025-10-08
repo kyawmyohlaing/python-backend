@@ -119,11 +119,19 @@ def create_order(
         if payment_type not in valid_payment_types:
             payment_type = "cash"  # Default to cash if invalid
     
+    # If table_number is provided, look up the corresponding table and set table_id
+    table_id = order.table_id
+    if order.table_number and not table_id:
+        # Look up table by table_number
+        table = db.query(Table).filter(Table.table_number == order.table_number).first()
+        if table:
+            table_id = table.id
+    
     # Create new order
     db_order = Order(
         total=order.total,
         order_data=order_data_json,
-        table_id=order.table_id,
+        table_id=table_id,  # Use the looked up table_id if available
         customer_count=order.customer_count,
         special_requests=order.special_requests,
         created_by=current_user.id,

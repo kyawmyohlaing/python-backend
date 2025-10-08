@@ -79,11 +79,26 @@ def init_database():
             from passlib.context import CryptContext
             pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
             
+            def truncate_password_for_bcrypt(password: str) -> str:
+                """
+                Truncate password to 72 bytes for bcrypt compatibility.
+                Bcrypt has a limitation where only the first 72 bytes are used.
+                """
+                MAX_PASSWORD_LENGTH = 72
+                if isinstance(password, str):
+                    # Encode to bytes to check actual byte length
+                    password_bytes = password.encode('utf-8')
+                    if len(password_bytes) > MAX_PASSWORD_LENGTH:
+                        # Truncate to 72 bytes and decode back to string
+                        truncated_bytes = password_bytes[:MAX_PASSWORD_LENGTH]
+                        return truncated_bytes.decode('utf-8', errors='ignore')
+                return password
+            
             # Admin user
             admin_user = User(
                 username="admin",
                 email="admin@example.com",
-                hashed_password=pwd_context.hash("admin123"),
+                hashed_password=pwd_context.hash(truncate_password_for_bcrypt("admin123")),
                 role=UserRole.ADMIN
             )
             
@@ -91,7 +106,7 @@ def init_database():
             waiter_user = User(
                 username="waiter",
                 email="waiter@example.com",
-                hashed_password=pwd_context.hash("waiter123"),
+                hashed_password=pwd_context.hash(truncate_password_for_bcrypt("waiter123")),
                 role=UserRole.WAITER
             )
             
@@ -99,7 +114,7 @@ def init_database():
             cashier_user = User(
                 username="cashier",
                 email="cashier@example.com",
-                hashed_password=pwd_context.hash("cashier123"),
+                hashed_password=pwd_context.hash(truncate_password_for_bcrypt("cashier123")),
                 role=UserRole.CASHIER
             )
             
@@ -107,7 +122,7 @@ def init_database():
             manager_user = User(
                 username="manager",
                 email="manager@example.com",
-                hashed_password=pwd_context.hash("manager123"),
+                hashed_password=pwd_context.hash(truncate_password_for_bcrypt("manager123")),
                 role=UserRole.MANAGER
             )
             
@@ -115,7 +130,7 @@ def init_database():
             chef_user = User(
                 username="chef",
                 email="chef@example.com",
-                hashed_password=pwd_context.hash("chef123"),
+                hashed_password=pwd_context.hash(truncate_password_for_bcrypt("chef123")),
                 role=UserRole.CHEF
             )
             

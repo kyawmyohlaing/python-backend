@@ -17,12 +17,33 @@ config = Config()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
 
+# Maximum password length for bcrypt (72 bytes)
+MAX_PASSWORD_LENGTH = 72
+
+def truncate_password_for_bcrypt(password: str) -> str:
+    """
+    Truncate password to 72 bytes for bcrypt compatibility.
+    Bcrypt has a limitation where only the first 72 bytes are used.
+    """
+    if isinstance(password, str):
+        # Encode to bytes to check actual byte length
+        password_bytes = password.encode('utf-8')
+        if len(password_bytes) > MAX_PASSWORD_LENGTH:
+            # Truncate to 72 bytes and decode back to string
+            truncated_bytes = password_bytes[:MAX_PASSWORD_LENGTH]
+            return truncated_bytes.decode('utf-8', errors='ignore')
+    return password
+
 # Password hashing
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    # Truncate password if it's too long for bcrypt
+    truncated_password = truncate_password_for_bcrypt(password)
+    return pwd_context.hash(truncated_password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    # Truncate password if it's too long for bcrypt
+    truncated_password = truncate_password_for_bcrypt(plain_password)
+    return pwd_context.verify(truncated_password, hashed_password)
 
 # JWT token
 def create_access_token(data: dict, expires_delta: timedelta | None = None):

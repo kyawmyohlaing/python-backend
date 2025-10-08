@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, Form
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import sys
@@ -74,16 +74,6 @@ app.include_router(stock_router)
 app.include_router(analytics_router)  # Include analytics router
 app.include_router(payment_router)  # Include payment router
 
-# Test endpoint to verify the app is working
-@app.get("/test")
-def test_endpoint():
-    return {"message": "Test endpoint working"}
-
-# Test form data endpoint
-@app.post("/test-form")
-def test_form_data(username: str = Form(...), password: str = Form(...)):
-    return {"username": username, "password": password}
-
 @app.get("/")
 def root():
     return {"message": "Welcome to FastAPI Backend with Postgres, JWT & Alembic!"}
@@ -97,9 +87,8 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8088))
     host = os.getenv("HOST", "0.0.0.0")
 
-    # Use the import string to enable reload
     uvicorn.run(
-        "app.main:app",
+        "new_main:app",
         host=host,
         port=port,
         reload=True,

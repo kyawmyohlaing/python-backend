@@ -2,6 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from fastapi.security import OAuth2PasswordBearer
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Handle imports for both local development and Docker container environments
 try:
@@ -28,6 +33,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 # Register
 @router.post("/register", response_model=UserResponse)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    logger.info("Register user endpoint called")
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
@@ -40,12 +46,36 @@ def login_user(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    # Authenticate user with either email or username
-    user = UserService.authenticate_user(db, username, password)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    token = create_access_token({"sub": str(user.id), "role": user.role.value})
-    return {"access_token": token, "token_type": "bearer"}
+    logger.info(f"Login endpoint called with username: {username}")
+    try:
+        # Log the received form data
+        logger.info(f"Received form data - username: {username}, password: {'*' * len(password)}")
+        
+        # Authenticate user with either email or username
+        user = UserService.authenticate_user(db, username, password)
+        logger.info(f"User authentication result: {user is not None}")
+        
+        if not user:
+            logger.warning(f"Authentication failed for user: {username}")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+            
+        logger.info(f"Creating token for user ID: {user.id}, role: {user.role}")
+        # Fix: Convert enum to string value for JWT token
+        token = create_access_token({"sub": str(user.id), "role": user.role.value})
+        logger.info("Token created successfully")
+        
+        response_data = {"access_token": token, "token_type": "bearer"}
+        logger.info(f"Sending response: {response_data}")
+        return response_data
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Error in login_user: {str(e)}")
+        logger.error(f"Error type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
 # Remove the duplicate get_current_user function - using the shared one from dependencies.py
 

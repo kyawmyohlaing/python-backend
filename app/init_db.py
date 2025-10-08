@@ -10,14 +10,18 @@ try:
     from app.config import Config
     from app.models.order import Order
     from app.models.order_item import OrderItem
+    # Import our security module for password handling
+    from app.security import hash_password
 except ImportError:
     # Try importing directly (Docker container)
     from database import Base, engine
-    from models.menu import MenuItem
-    from models.user import User
+    from models import MenuItem
+    from models import User
     from config import Config
-    from models.order import Order
-    from models.order_item import OrderItem
+    from models import Order
+    from models import OrderItem
+    # Import our security module for password handling
+    from security import hash_password
 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import ProgrammingError
@@ -73,7 +77,7 @@ def init_db():
                 sample_user = User(
                     username='admin',
                     email='admin@example.com',
-                    hashed_password=pwd_context.hash('admin123'),
+                    hashed_password=hash_password('admin123'),
                     role='admin'
                 )
                 

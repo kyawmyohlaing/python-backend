@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test database connection
+Test login function directly
 """
 
 import sys
@@ -12,38 +12,32 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import required modules
 try:
-    from app.database import engine
-    from app.models.user import User
+    from app.database import engine, get_db
+    from app.routes.user_routes import login_user
     from sqlalchemy.orm import sessionmaker
 except ImportError as e:
     print(f"Import error: {e}")
     sys.exit(1)
 
-def test_db_connection():
+def test_login_function():
     try:
-        print("Testing database connection...")
+        print("Testing login function directly...")
         
         # Create a session
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         db = SessionLocal()
         
-        # Try a simple query
-        count = db.query(User).count()
-        print(f"Database connection successful. Found {count} users.")
-        
-        # Get the manager user
-        manager_user = db.query(User).filter(User.username == 'manager').first()
-        if manager_user:
-            print(f"Manager user found: {manager_user.username}, role: {manager_user.role}")
-        else:
-            print("Manager user not found")
+        # Test the login function directly
+        print("Calling login_user function with username='manager', password='manager123'")
+        result = login_user("manager", "manager123", db)
+        print(f"Login function result: {result}")
         
         db.close()
         
     except Exception as e:
-        print(f"Error testing database connection: {str(e)}")
+        print(f"Error testing login function: {str(e)}")
         import traceback
         traceback.print_exc()
 
 if __name__ == "__main__":
-    test_db_connection()
+    test_login_function()
