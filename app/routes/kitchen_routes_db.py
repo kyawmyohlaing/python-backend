@@ -132,8 +132,22 @@ def update_kitchen_order_status(order_id: int, kitchen_order_update: KitchenOrde
     """Update the status of an order in the kitchen"""
     # Find the kitchen order
     kitchen_order = db.query(KitchenOrder).filter(KitchenOrder.order_id == order_id).first()
+    
+    # If kitchen order doesn't exist, create it
     if not kitchen_order:
-        raise HTTPException(status_code=404, detail="Kitchen order not found")
+        # Check if the order exists in the main orders table
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        # Create a new kitchen order with default status 'pending'
+        kitchen_order = KitchenOrder(
+            order_id=order_id,
+            status="pending"
+        )
+        db.add(kitchen_order)
+        db.commit()
+        db.refresh(kitchen_order)
     
     # Validate status - only allow valid statuses
     valid_statuses = ["pending", "preparing", "ready", "served"]
