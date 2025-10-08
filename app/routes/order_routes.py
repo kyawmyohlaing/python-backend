@@ -121,6 +121,7 @@ def create_order(
     
     # If table_number is provided, look up the corresponding table and set table_id
     table_id = order.table_id
+    table = None
     if order.table_number and not table_id:
         # Look up table by table_number
         table = db.query(Table).filter(Table.table_number == order.table_number).first()
@@ -148,6 +149,29 @@ def create_order(
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
+    
+    # If this is a dine-in order with a table, automatically assign the table to this order
+    if (order.order_type == OrderType.DINE_IN or 
+        (isinstance(order.order_type, str) and order.order_type.lower() == 'dine_in')) and table:
+        try:
+            # Update table status to occupied
+            table.is_occupied = True
+            table.current_order_id = db_order.id
+            table.status = "occupied"
+            
+            # Mark all seats as occupied
+            if table.seats:
+                for seat in table.seats:
+                    seat["status"] = "occupied"
+                    # Get customer name from order if available
+                    if db_order.customer_name:
+                        seat["customer_name"] = db_order.customer_name
+            
+            db.commit()
+            db.refresh(table)
+        except Exception as e:
+            # If table assignment fails, log the error but don't fail the order creation
+            print(f"Warning: Failed to automatically assign table {table.id} to order {db_order.id}: {str(e)}")
     
     return order_model_to_response(db_order)
 
