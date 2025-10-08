@@ -95,6 +95,11 @@ If you encounter database connection issues:
 - `/api/tables/` - Table management
 - `/api/invoices/` - Invoice management
 - `/api/analytics/` - Analytics and sales reporting
+  - `/api/analytics/reports/top-items` - Top selling items report
+  - `/api/analytics/reports/peak-hours` - Peak business hours report
+  - `/api/analytics/reports/daily` - Daily sales report
+  - `/api/analytics/reports/weekly` - Weekly sales report
+  - `/api/analytics/reports/monthly` - Monthly sales report
 
 ## Development
 
