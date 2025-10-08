@@ -27,7 +27,10 @@ def bar_order_to_detail(kitchen_order: KitchenOrder, db_order: Order) -> BarOrde
     """Convert database KitchenOrder and Order models to BarOrderDetail response model"""
     # Parse order_data from JSON string
     try:
-        order_items_data = json.loads(db_order.order_data) if db_order.order_data else []
+        # Access column value properly to avoid type checking issues
+        order_data_value = getattr(db_order, 'order_data', None)
+        order_data_str = str(order_data_value) if order_data_value is not None else "[]"
+        order_items_data = json.loads(order_data_str) if order_data_str else []
     except (json.JSONDecodeError, TypeError):
         order_items_data = []
     
@@ -36,34 +39,43 @@ def bar_order_to_detail(kitchen_order: KitchenOrder, db_order: Order) -> BarOrde
     for item in order_items_data:
         order_item_objects.append(
             OrderItem(
-                name=item.get("name", ""),
+                name=str(item.get("name", "")),
                 price=float(item.get("price", 0.0)),
-                category=item.get("category", ""),
+                category=str(item.get("category", "")),
                 modifiers=item.get("modifiers", [])
             )
         )
     
     # Properly handle order_type - don't default to "dine_in" if it's None
-    order_type = db_order.order_type
-    if order_type is None:
-        order_type = "dine_in"  # Default to dine_in only if explicitly None
+    order_type_value = getattr(db_order, 'order_type', None)
+    order_type = str(order_type_value) if order_type_value is not None else "dine_in"
     
     # Convert table_number to string if it's an integer
-    table_number = db_order.table_number
-    if table_number is not None:
-        table_number = str(table_number)
+    table_number_value = getattr(db_order, 'table_number', None)
+    table_number = str(table_number_value) if table_number_value is not None else None
+    
+    # Access column values properly using getattr
+    kitchen_order_id = int(getattr(kitchen_order, 'id', 0))
+    kitchen_order_order_id = int(getattr(kitchen_order, 'order_id', 0))
+    kitchen_order_status = str(getattr(kitchen_order, 'status', 'pending'))
+    kitchen_order_created_at = getattr(kitchen_order, 'created_at', datetime.utcnow())
+    kitchen_order_updated_at = getattr(kitchen_order, 'updated_at', datetime.utcnow())
+    
+    # Get values from db_order using getattr
+    db_order_total = float(getattr(db_order, 'total', 0.0)) if getattr(db_order, 'total', None) is not None else 0.0
+    db_order_customer_name = str(getattr(db_order, 'customer_name', '')) if getattr(db_order, 'customer_name', None) is not None else None
     
     return BarOrderDetail(
-        id=kitchen_order.id,
-        order_id=kitchen_order.order_id,
-        status=kitchen_order.status,
-        created_at=kitchen_order.created_at,
-        updated_at=kitchen_order.updated_at,
+        id=kitchen_order_id,
+        order_id=kitchen_order_order_id,
+        status=kitchen_order_status,
+        created_at=kitchen_order_created_at,
+        updated_at=kitchen_order_updated_at,
         order_items=order_item_objects,
-        total=float(db_order.total) if db_order.total is not None else 0.0,
-        order_type=str(order_type) if order_type is not None else None,
+        total=db_order_total,
+        order_type=order_type,
         table_number=table_number,
-        customer_name=db_order.customer_name
+        customer_name=db_order_customer_name
     )
 
 # Helper function to determine if an item is a drink
@@ -84,9 +96,13 @@ def is_drink_item(item):
         # Use exact word matching to prevent substring matches
         for keyword in drink_keywords:
             # Special handling for food items that might contain drink keywords
-            food_exceptions = ['coffee cake', 'tea sandwich', 'coffee ice cream', 'tea cookies']
+            food_exceptions = ['coffee cake', 'tea sandwich', 'coffee ice cream', 'tea cookies', 'tea cake']
             if keyword in name and not any(exception in name for exception in food_exceptions):
-                return True
+                # Make sure it's a whole word match
+                import re
+                pattern = r'\b' + re.escape(keyword) + r'\b'
+                if re.search(pattern, name):
+                    return True
     
     return False
 
@@ -104,7 +120,10 @@ def get_bar_orders(db: Session = Depends(get_db)):
         if db_order:
             # Parse order_data to check if it contains drink items
             try:
-                order_items_data = json.loads(db_order.order_data) if db_order.order_data else []
+                # Access column value properly to avoid type checking issues
+                order_data_value = getattr(db_order, 'order_data', None)
+                order_data_str = str(order_data_value) if order_data_value is not None else "[]"
+                order_items_data = json.loads(order_data_str) if order_data_str else []
             except (json.JSONDecodeError, TypeError):
                 order_items_data = []
             
@@ -164,34 +183,39 @@ def print_bar_order_ticket(order_id: int):
 @router.put("/orders/{order_id}", response_model=BarOrderResponse)
 def update_bar_order_status(order_id: int, bar_order_update: BarOrderUpdate, db: Session = Depends(get_db)):
     """Update the status of an order in the bar"""
-    # Find the kitchen order
+    # Find the kitchen order (Bar uses the same KitchenOrder model)
     kitchen_order = db.query(KitchenOrder).filter(KitchenOrder.order_id == order_id).first()
+    
+    # If kitchen order doesn't exist, create it
     if not kitchen_order:
-        raise HTTPException(status_code=404, detail="Bar order not found")
+        # Check if the order exists in the main orders table
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        # Create a new kitchen order with default status 'pending'
+        kitchen_order = KitchenOrder(
+            order_id=order_id,
+            status="pending"
+        )
+        db.add(kitchen_order)
+        db.commit()
+        db.refresh(kitchen_order)
     
     # Validate status - only allow valid statuses
     valid_statuses = ["pending", "preparing", "ready", "served"]
     if bar_order_update.status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
     
-    # Update the status
+    # Update the status (this works in kitchen routes, so it should work here too)
     kitchen_order.status = bar_order_update.status
     kitchen_order.updated_at = datetime.utcnow()
     
     db.commit()
     db.refresh(kitchen_order)
     
+    # Return BarOrderResponse (convert from KitchenOrder)
     return BarOrderResponse.from_orm(kitchen_order)
-
-@router.delete("/orders/{order_id}")
-def remove_bar_order(order_id: int, db: Session = Depends(get_db)):
-    """Remove an order from the bar display (when it's completed)"""
-    kitchen_order = db.query(KitchenOrder).filter(KitchenOrder.order_id == order_id).first()
-    if kitchen_order:
-        db.delete(kitchen_order)
-        db.commit()
-    
-    return {"message": "Order removed from bar display"}
 
 @router.post("/orders/{order_id}/mark-served")
 def mark_order_as_served(order_id: int, db: Session = Depends(get_db)):

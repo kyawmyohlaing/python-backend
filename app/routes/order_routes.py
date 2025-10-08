@@ -150,6 +150,21 @@ def create_order(
     db.commit()
     db.refresh(db_order)
     
+    # Automatically create a kitchen order for this order
+    try:
+        from app.models.kitchen import KitchenOrder
+        kitchen_order = KitchenOrder(
+            order_id=db_order.id,
+            status="pending"
+        )
+        db.add(kitchen_order)
+        db.commit()
+        db.refresh(kitchen_order)
+    except Exception as e:
+        # If kitchen order creation fails, log the error but don't fail the order creation
+        print(f"Warning: Failed to create kitchen order for order {db_order.id}: {str(e)}")
+        db.rollback()  # Rollback just the kitchen order creation
+    
     # If this is a dine-in order with a table, automatically assign the table to this order
     if (order.order_type == OrderType.DINE_IN or 
         (isinstance(order.order_type, str) and order.order_type.lower() == 'dine_in')) and table:
