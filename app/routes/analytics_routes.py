@@ -10,11 +10,13 @@ try:
     # Try importing from app.module (local development)
     from app.database import get_db
     from app.models.order import Order
+    from app.services.settings_service import SettingsService
 except ImportError:
     # Try importing directly (Docker container)
     try:
         from database import get_db
         from models.order import Order
+        from services.settings_service import SettingsService
     except ImportError:
         # Fallback for testing environment - create a mock Order class
         class Order:
@@ -419,10 +421,14 @@ def get_monthly_sales_report(
 def get_tax_summary(
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
+    tax_rate: Optional[float] = Query(None),  # Allow custom tax rate
     db: Session = Depends(get_db)
 ):
     """Get tax summary report"""
     start_date, end_date = get_date_range(start_date, end_date)
+    
+    # Use provided tax rate, or get from settings, or default
+    TAX_RATE = tax_rate if tax_rate is not None else SettingsService.get_tax_rate(db)
     
     # Get all orders within the date range
     try:
@@ -433,9 +439,6 @@ def get_tax_summary(
     except Exception as e:
         # Fallback for testing environment
         orders = []
-    
-    # Default tax rate (in a real implementation, this might come from settings)
-    TAX_RATE = 0.08  # 8% tax rate
     
     # Initialize summary data
     total_sales = 0.0
@@ -611,10 +614,14 @@ def get_compliance_reports(
 def get_sales_tax_report(
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
+    tax_rate: Optional[float] = Query(None),  # Allow custom tax rate
     db: Session = Depends(get_db)
 ):
     """Get sales tax report"""
     start_date, end_date = get_date_range(start_date, end_date)
+    
+    # Use provided tax rate, or get from settings, or default
+    TAX_RATE = tax_rate if tax_rate is not None else SettingsService.get_tax_rate(db)
     
     # Get all orders within the date range
     try:
@@ -625,9 +632,6 @@ def get_sales_tax_report(
     except Exception as e:
         # Fallback for testing environment
         orders = []
-    
-    # Default tax rate
-    TAX_RATE = 0.08  # 8% tax rate
     
     # Initialize report data
     total_sales = 0.0
@@ -699,10 +703,14 @@ def get_sales_tax_report(
 def get_itemized_tax_report(
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
+    tax_rate: Optional[float] = Query(None),  # Allow custom tax rate
     db: Session = Depends(get_db)
 ):
     """Get itemized tax report"""
     start_date, end_date = get_date_range(start_date, end_date)
+    
+    # Use provided tax rate, or get from settings, or default
+    TAX_RATE = tax_rate if tax_rate is not None else SettingsService.get_tax_rate(db)
     
     # Get all orders within the date range
     try:
@@ -713,9 +721,6 @@ def get_itemized_tax_report(
     except Exception as e:
         # Fallback for testing environment
         orders = []
-    
-    # Default tax rate
-    TAX_RATE = 0.08  # 8% tax rate
     
     # Initialize report data
     itemized_tax_data = []
@@ -792,3 +797,17 @@ def get_itemized_tax_report(
         "total_tax_collected": round(total_tax_collected, 2),
         "itemized_tax_data": itemized_tax_data
     }
+
+@router.get("/tax-rate")
+def get_current_tax_rate(db: Session = Depends(get_db)):
+    """Get the current tax rate"""
+    return {"tax_rate": SettingsService.get_tax_rate(db)}
+
+@router.post("/tax-rate")
+def update_tax_rate(tax_rate: float, db: Session = Depends(get_db)):
+    """Update the default tax rate"""
+    try:
+        result = SettingsService.update_tax_rate(db, tax_rate)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

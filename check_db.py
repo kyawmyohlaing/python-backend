@@ -1,5 +1,24 @@
 import psycopg2
-import os
+import sqlite3
+
+# Connect to the database
+conn = sqlite3.connect('app/dev.db')
+cursor = conn.cursor()
+
+# Check if settings table exists
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='settings';")
+result = cursor.fetchall()
+print('Settings table exists:', len(result) > 0)
+
+# List all tables
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+tables = cursor.fetchall()
+print('All tables:')
+for table in tables:
+    print(f"  - {table[0]}")
+
+# Close connection
+conn.close()
 
 # Database connection parameters
 DB_HOST = "localhost"

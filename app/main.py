@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     # Try importing from app.module (local development)
     from app.models import User, MenuItem, Order, OrderItem, Invoice, KitchenOrder, Table, Ingredient, StockTransaction
+    from app.models.settings import Setting  # Import settings model
     # Import the updated router
     from app.routes.user_routes import router as user_router
     from app.routes.menu_routes import router as menu_router
@@ -25,12 +26,14 @@ try:
     from app.routes.stock_routes import router as stock_router
     from app.routes.analytics_routes import router as analytics_router  # Add analytics router
     from app.routes.payment_routes import router as payment_router  # Add payment router
+    from app.routes.settings_routes import router as settings_router  # Add settings router
     from app.database import Base, engine
     from app.config import Config
 except ImportError:
     # Try importing directly (Docker container)
     try:
         from models import User, MenuItem, Order, OrderItem, Invoice, KitchenOrder, Table, Ingredient, StockTransaction
+        from models.settings import Setting  # Import settings model
         from routes.user_routes import router as user_router
         from routes.menu_routes import router as menu_router
         from routes.order_routes import router as order_router
@@ -41,6 +44,7 @@ except ImportError:
         from routes.stock_routes import router as stock_router
         from routes.analytics_routes import router as analytics_router  # Add analytics router
         from routes.payment_routes import router as payment_router  # Add payment router
+        from routes.settings_routes import router as settings_router  # Add settings router
         from database import Base, engine
         from config import Config
     except ImportError:
@@ -73,6 +77,7 @@ app.include_router(invoice_router)
 app.include_router(stock_router)
 app.include_router(analytics_router)  # Include analytics router
 app.include_router(payment_router)  # Include payment router
+app.include_router(settings_router)  # Include settings router
 
 # Test endpoint to verify the app is working
 @app.get("/test")
