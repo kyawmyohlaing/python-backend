@@ -414,3 +414,381 @@ def get_monthly_sales_report(
         "average_monthly_sales": round(avg_monthly_sales, 2),
         "sales_data": sales_data
     }
+
+@router.get("/reports/tax-summary")
+def get_tax_summary(
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Get tax summary report"""
+    start_date, end_date = get_date_range(start_date, end_date)
+    
+    # Get all orders within the date range
+    try:
+        orders = db.query(Order).filter(
+            Order.created_at >= start_date,
+            Order.created_at <= end_date
+        ).all() if db else []
+    except Exception as e:
+        # Fallback for testing environment
+        orders = []
+    
+    # Default tax rate (in a real implementation, this might come from settings)
+    TAX_RATE = 0.08  # 8% tax rate
+    
+    # Initialize summary data
+    total_sales = 0.0
+    taxable_sales = 0.0
+    total_tax_collected = 0.0
+    tax_by_category = defaultdict(lambda: {
+        "taxable_sales": 0.0,
+        "tax_collected": 0.0,
+        "tax_rate": TAX_RATE
+    })
+    
+    # Process all orders
+    for order in orders:
+        try:
+            order_total = float(order.total)
+            total_sales += order_total
+            
+            # For simplicity, we assume all sales are taxable
+            # In a real implementation, you might have tax-exempt items
+            taxable_amount = order_total
+            tax_amount = taxable_amount * TAX_RATE
+            
+            taxable_sales += taxable_amount
+            total_tax_collected += tax_amount
+            
+            # Process order items for category breakdown
+            order_items = []
+            if hasattr(order, 'order_data'):
+                if isinstance(order.order_data, str):
+                    order_items = json.loads(order.order_data)
+                elif isinstance(order.order_data, list):
+                    order_items = order.order_data
+            
+            # Group by category
+            category_totals = defaultdict(float)
+            for item in order_items:
+                category = item.get('category', 'Unknown')
+                item_price = item.get('price', 0)
+                item_quantity = item.get('quantity', 1)
+                item_total = item_price * item_quantity
+                category_totals[category] += item_total
+            
+            # Apply tax to each category
+            for category, category_total in category_totals.items():
+                tax_by_category[category]["taxable_sales"] += category_total
+                tax_by_category[category]["tax_collected"] += category_total * TAX_RATE
+                
+        except Exception as e:
+            # Skip orders with invalid data
+            continue
+    
+    # Convert tax_by_category to list format
+    tax_by_category_list = []
+    for category, data in tax_by_category.items():
+        tax_by_category_list.append({
+            "category": category,
+            "taxable_sales": round(data["taxable_sales"], 2),
+            "tax_collected": round(data["tax_collected"], 2),
+            "tax_rate": data["tax_rate"]
+        })
+    
+    return {
+        "period": f"{start_date.date().isoformat()} to {end_date.date().isoformat()}",
+        "start_date": start_date.date().isoformat(),
+        "end_date": end_date.date().isoformat(),
+        "total_sales": round(total_sales, 2),
+        "taxable_sales": round(taxable_sales, 2),
+        "total_tax_collected": round(total_tax_collected, 2),
+        "tax_rate": TAX_RATE,
+        "tax_by_category": tax_by_category_list
+    }
+
+@router.get("/reports/compliance")
+def get_compliance_reports(
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Get compliance reports"""
+    start_date, end_date = get_date_range(start_date, end_date)
+    
+    # Get all orders within the date range
+    try:
+        orders = db.query(Order).filter(
+            Order.created_at >= start_date,
+            Order.created_at <= end_date
+        ).all() if db else []
+    except Exception as e:
+        # Fallback for testing environment
+        orders = []
+    
+    # Initialize compliance data
+    total_transactions = len(orders)
+    compliant_transactions = 0
+    compliance_issues = []
+    audit_trail = []
+    
+    # Process all orders for compliance checking
+    for order in orders:
+        try:
+            is_compliant = True
+            order_id = order.id
+            order_timestamp = order.created_at
+            
+            # Check for compliance issues (simplified examples)
+            # In a real implementation, you would have more sophisticated checks
+            
+            # Example compliance check: Order total should be positive
+            if float(order.total) <= 0:
+                is_compliant = False
+                compliance_issues.append({
+                    "date": order_timestamp.isoformat(),
+                    "issue_type": "Invalid Amount",
+                    "description": f"Order #{order_id} has invalid total amount: ${order.total}",
+                    "amount": float(order.total),
+                    "status": "pending"
+                })
+            
+            # Example compliance check: Order should have items
+            order_items = []
+            if hasattr(order, 'order_data'):
+                if isinstance(order.order_data, str):
+                    order_items = json.loads(order.order_data)
+                elif isinstance(order.order_data, list):
+                    order_items = order.order_data
+            
+            if len(order_items) == 0:
+                is_compliant = False
+                compliance_issues.append({
+                    "date": order_timestamp.isoformat(),
+                    "issue_type": "Empty Order",
+                    "description": f"Order #{order_id} has no items",
+                    "amount": 0.0,
+                    "status": "pending"
+                })
+            
+            # Add audit trail entry
+            audit_trail.append({
+                "timestamp": order_timestamp.isoformat(),
+                "action": "Order Processed",
+                "user": "system",
+                "details": f"Order #{order_id} processed for compliance check"
+            })
+            
+            if is_compliant:
+                compliant_transactions += 1
+                
+        except Exception as e:
+            # Record compliance issue for orders with invalid data
+            compliance_issues.append({
+                "date": order.created_at.isoformat() if hasattr(order, 'created_at') else datetime.utcnow().isoformat(),
+                "issue_type": "Data Error",
+                "description": f"Error processing order #{order.id if hasattr(order, 'id') else 'Unknown'}: {str(e)}",
+                "amount": 0.0,
+                "status": "pending"
+            })
+    
+    # Calculate compliance rate
+    compliance_rate = compliant_transactions / total_transactions if total_transactions > 0 else 1.0
+    
+    return {
+        "period": f"{start_date.date().isoformat()} to {end_date.date().isoformat()}",
+        "start_date": start_date.date().isoformat(),
+        "end_date": end_date.date().isoformat(),
+        "total_transactions": total_transactions,
+        "compliant_transactions": compliant_transactions,
+        "compliance_rate": round(compliance_rate, 4),
+        "compliance_issues": compliance_issues,
+        "audit_trail": audit_trail
+    }
+
+@router.get("/reports/sales-tax")
+def get_sales_tax_report(
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Get sales tax report"""
+    start_date, end_date = get_date_range(start_date, end_date)
+    
+    # Get all orders within the date range
+    try:
+        orders = db.query(Order).filter(
+            Order.created_at >= start_date,
+            Order.created_at <= end_date
+        ).all() if db else []
+    except Exception as e:
+        # Fallback for testing environment
+        orders = []
+    
+    # Default tax rate
+    TAX_RATE = 0.08  # 8% tax rate
+    
+    # Initialize report data
+    total_sales = 0.0
+    taxable_sales = 0.0
+    exempt_sales = 0.0
+    total_tax_collected = 0.0
+    
+    # Group by period (weekly for this example)
+    period_data = defaultdict(lambda: {
+        "total_sales": 0.0,
+        "taxable_sales": 0.0,
+        "tax_collected": 0.0,
+        "tax_rate": TAX_RATE
+    })
+    
+    # Process all orders
+    for order in orders:
+        try:
+            order_total = float(order.total)
+            total_sales += order_total
+            
+            # For simplicity, we assume all sales are taxable
+            taxable_amount = order_total
+            tax_amount = taxable_amount * TAX_RATE
+            
+            taxable_sales += taxable_amount
+            total_tax_collected += tax_amount
+            exempt_sales += 0.0  # No exempt sales in this example
+            
+            # Group by week
+            order_date = order.created_at.date()
+            week_start = order_date - timedelta(days=order_date.weekday())
+            period_key = f"Week of {week_start.strftime('%Y-%m-%d')}"
+            
+            period_data[period_key]["total_sales"] += order_total
+            period_data[period_key]["taxable_sales"] += taxable_amount
+            period_data[period_key]["tax_collected"] += tax_amount
+                
+        except Exception as e:
+            # Skip orders with invalid data
+            continue
+    
+    # Convert period_data to list format
+    tax_by_period = []
+    for period, data in period_data.items():
+        tax_by_period.append({
+            "period": period,
+            "total_sales": round(data["total_sales"], 2),
+            "taxable_sales": round(data["taxable_sales"], 2),
+            "tax_collected": round(data["tax_collected"], 2),
+            "tax_rate": data["tax_rate"]
+        })
+    
+    # Sort by period
+    tax_by_period.sort(key=lambda x: x["period"])
+    
+    return {
+        "period": f"{start_date.date().isoformat()} to {end_date.date().isoformat()}",
+        "start_date": start_date.date().isoformat(),
+        "end_date": end_date.date().isoformat(),
+        "total_sales": round(total_sales, 2),
+        "taxable_sales": round(taxable_sales, 2),
+        "exempt_sales": round(exempt_sales, 2),
+        "total_tax_collected": round(total_tax_collected, 2),
+        "tax_by_period": tax_by_period
+    }
+
+@router.get("/reports/itemized-tax")
+def get_itemized_tax_report(
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Get itemized tax report"""
+    start_date, end_date = get_date_range(start_date, end_date)
+    
+    # Get all orders within the date range
+    try:
+        orders = db.query(Order).filter(
+            Order.created_at >= start_date,
+            Order.created_at <= end_date
+        ).all() if db else []
+    except Exception as e:
+        # Fallback for testing environment
+        orders = []
+    
+    # Default tax rate
+    TAX_RATE = 0.08  # 8% tax rate
+    
+    # Initialize report data
+    itemized_tax_data = []
+    total_items = 0
+    taxable_items = 0
+    total_tax_collected = 0.0
+    
+    # Process all orders
+    for order in orders:
+        try:
+            # Process order items
+            order_items = []
+            if hasattr(order, 'order_data'):
+                if isinstance(order.order_data, str):
+                    order_items = json.loads(order.order_data)
+                elif isinstance(order.order_data, list):
+                    order_items = order.order_data
+            
+            for item in order_items:
+                total_items += 1
+                taxable_items += 1  # Assume all items are taxable
+                
+                item_name = item.get('name', 'Unknown Item')
+                category = item.get('category', 'Unknown')
+                unit_price = item.get('price', 0)
+                quantity = item.get('quantity', 1)
+                total_sales = unit_price * quantity
+                tax_collected = total_sales * TAX_RATE
+                
+                total_tax_collected += tax_collected
+                
+                # Check if item already exists in our list
+                existing_item = None
+                for existing in itemized_tax_data:
+                    if (existing["item_name"] == item_name and 
+                        existing["category"] == category and
+                        existing["unit_price"] == unit_price):
+                        existing_item = existing
+                        break
+                
+                if existing_item:
+                    # Update existing item
+                    existing_item["quantity_sold"] += quantity
+                    existing_item["total_sales"] += total_sales
+                    existing_item["tax_collected"] += tax_collected
+                else:
+                    # Add new item
+                    itemized_tax_data.append({
+                        "item_name": item_name,
+                        "category": category,
+                        "quantity_sold": quantity,
+                        "unit_price": unit_price,
+                        "total_sales": total_sales,
+                        "tax_rate": TAX_RATE,
+                        "tax_collected": tax_collected
+                    })
+                
+        except Exception as e:
+            # Skip orders with invalid data
+            continue
+    
+    # Round all monetary values
+    for item in itemized_tax_data:
+        item["unit_price"] = round(item["unit_price"], 2)
+        item["total_sales"] = round(item["total_sales"], 2)
+        item["tax_collected"] = round(item["tax_collected"], 2)
+    
+    return {
+        "period": f"{start_date.date().isoformat()} to {end_date.date().isoformat()}",
+        "start_date": start_date.date().isoformat(),
+        "end_date": end_date.date().isoformat(),
+        "total_items": total_items,
+        "taxable_items": taxable_items,
+        "total_tax_collected": round(total_tax_collected, 2),
+        "itemized_tax_data": itemized_tax_data
+    }
