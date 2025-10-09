@@ -303,9 +303,9 @@ def merge_tables(table_id_1: int, table_id_2: int, db: Session = Depends(get_db)
     db.refresh(table2)
     return TableResponse.model_validate(table1)
 
-@router.post("/split-bill/{table_id}", response_model=List[OrderResponse])
-def split_bill(table_id: int, split_details: dict, db: Session = Depends(get_db)):
-    """Split a bill at a table into separate orders"""
+@router.post("/{table_id}/split-bill", response_model=List[OrderResponse])
+def split_bill(table_id: int, split_request: dict, db: Session = Depends(get_db)):
+    """Split a bill at a table into separate orders by seat or item"""
     table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
@@ -318,55 +318,182 @@ def split_bill(table_id: int, split_details: dict, db: Session = Depends(get_db)
     if not current_order:
         raise HTTPException(status_code=404, detail="Order not found")
     
-    # Split details should contain how to divide the order
-    # For example: {"split_1": [item_indices], "split_2": [item_indices]}
-    new_orders = []
-    
     # Parse order_data from JSON string
     current_order_items = json.loads(current_order.order_data) if current_order.order_data else []
     
-    # Create new orders based on split details
-    for split_key, item_indices in split_details.items():
-        # Create a new order with selected items
-        split_items = [current_order_items[i] for i in item_indices if i < len(current_order_items)]
-        split_total = sum(item.get("price", 0.0) for item in split_items)
+    # Split details should contain how to divide the order
+    # For example: {"method": "items", "splits": [{"items": [0, 1]}, {"items": [2, 3]}]}
+    # or: {"method": "seats", "seat_assignments": {"1": [0, 1], "2": [2, 3]}}
+    
+    method = split_request.get("method", "items")
+    new_orders = []
+    
+    if method == "items":
+        # Split by specific items
+        splits = split_request.get("splits", [])
+        for split in splits:
+            item_indices = split.get("items", [])
+            # Create a new order with selected items
+            split_items = [current_order_items[i] for i in item_indices if i < len(current_order_items)]
+            split_total = sum(item.get("price", 0.0) for item in split_items)
+            
+            # Convert items to OrderItem objects for response
+            order_item_objects = [
+                OrderItem(
+                    name=item.get("name", ""),
+                    price=item.get("price", 0.0),
+                    category=item.get("category", ""),
+                    modifiers=item.get("modifiers", [])
+                ) for item in split_items
+            ]
+            
+            # Create new order in database
+            new_order = Order(
+                total=split_total,
+                order_data=json.dumps(split_items),
+                table_id=table_id,
+                customer_count=len(item_indices),
+                special_requests=current_order.special_requests,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                order_type=current_order.order_type,
+                table_number=str(current_order.table_number) if current_order.table_number is not None else None,
+                customer_name=current_order.customer_name,
+                created_by=current_order.created_by
+            )
+            
+            db.add(new_order)
+            db.commit()
+            db.refresh(new_order)
+            
+            # Convert to response format
+            new_order_response = OrderResponse(
+                id=new_order.id,
+                order=order_item_objects,
+                total=new_order.total,
+                table_id=new_order.table_id,
+                customer_count=new_order.customer_count,
+                special_requests=new_order.special_requests,
+                timestamp=new_order.created_at,
+                order_type=new_order.order_type,
+                table_number=str(new_order.table_number) if new_order.table_number is not None else None,
+                customer_name=new_order.customer_name
+            )
+            
+            new_orders.append(new_order_response)
+    
+    elif method == "seats":
+        # Split by seats
+        seat_assignments = split_request.get("seat_assignments", {})
+        for seat_number, item_indices in seat_assignments.items():
+            # Create a new order with selected items
+            split_items = [current_order_items[i] for i in item_indices if i < len(current_order_items)]
+            split_total = sum(item.get("price", 0.0) for item in split_items)
+            
+            # Convert items to OrderItem objects for response
+            order_item_objects = [
+                OrderItem(
+                    name=item.get("name", ""),
+                    price=item.get("price", 0.0),
+                    category=item.get("category", ""),
+                    modifiers=item.get("modifiers", [])
+                ) for item in split_items
+            ]
+            
+            # Create new order in database
+            new_order = Order(
+                total=split_total,
+                order_data=json.dumps(split_items),
+                table_id=table_id,
+                customer_count=1,
+                special_requests=current_order.special_requests,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                order_type=current_order.order_type,
+                table_number=str(current_order.table_number) if current_order.table_number is not None else None,
+                customer_name=f"Seat {seat_number}",
+                created_by=current_order.created_by
+            )
+            
+            db.add(new_order)
+            db.commit()
+            db.refresh(new_order)
+            
+            # Convert to response format
+            new_order_response = OrderResponse(
+                id=new_order.id,
+                order=order_item_objects,
+                total=new_order.total,
+                table_id=new_order.table_id,
+                customer_count=new_order.customer_count,
+                special_requests=new_order.special_requests,
+                timestamp=new_order.created_at,
+                order_type=new_order.order_type,
+                table_number=str(new_order.table_number) if new_order.table_number is not None else None,
+                customer_name=new_order.customer_name
+            )
+            
+            new_orders.append(new_order_response)
+    
+    elif method == "equal":
+        # Split equally among specified number of parts
+        parts = split_request.get("parts", 2)
+        if parts <= 0:
+            raise HTTPException(status_code=400, detail="Parts must be greater than 0")
         
-        # Convert items to OrderItem objects for response
-        order_item_objects = [
-            OrderItem(
-                name=item.get("name", ""),
-                price=item.get("price", 0.0),
-                category=item.get("category", ""),
-                modifiers=item.get("modifiers", [])
-            ) for item in split_items
-        ]
-        
-        # Create new order in database
-        new_order = Order(
-            total=split_total,
-            order_data=json.dumps(split_items),
-            table_id=table_id,  # Same table
-            customer_count=len(item_indices),  # Approximate
-            special_requests=None,
-            timestamp=datetime.now()
-        )
-        
-        db.add(new_order)
-        db.commit()
-        db.refresh(new_order)
-        
-        # Convert to response format
-        new_order_response = OrderResponse(
-            id=new_order.id,
-            order=order_item_objects,
-            total=new_order.total,
-            table_id=new_order.table_id,
-            customer_count=new_order.customer_count,
-            special_requests=new_order.special_requests,
-            timestamp=new_order.timestamp
-        )
-        
-        new_orders.append(new_order_response)
+        # Distribute items as evenly as possible
+        for i in range(parts):
+            # Calculate which items go to this part
+            part_items = current_order_items[i::parts]
+            split_total = sum(item.get("price", 0.0) for item in part_items)
+            
+            # Convert items to OrderItem objects for response
+            order_item_objects = [
+                OrderItem(
+                    name=item.get("name", ""),
+                    price=item.get("price", 0.0),
+                    category=item.get("category", ""),
+                    modifiers=item.get("modifiers", [])
+                ) for item in part_items
+            ]
+            
+            # Create new order in database
+            new_order = Order(
+                total=split_total,
+                order_data=json.dumps(part_items),
+                table_id=table_id,
+                customer_count=len(part_items),
+                special_requests=current_order.special_requests,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                order_type=current_order.order_type,
+                table_number=str(current_order.table_number) if current_order.table_number is not None else None,
+                customer_name=f"Part {i+1}",
+                created_by=current_order.created_by
+            )
+            
+            db.add(new_order)
+            db.commit()
+            db.refresh(new_order)
+            
+            # Convert to response format
+            new_order_response = OrderResponse(
+                id=new_order.id,
+                order=order_item_objects,
+                total=new_order.total,
+                table_id=new_order.table_id,
+                customer_count=new_order.customer_count,
+                special_requests=new_order.special_requests,
+                timestamp=new_order.created_at,
+                order_type=new_order.order_type,
+                table_number=str(new_order.table_number) if new_order.table_number is not None else None,
+                customer_name=new_order.customer_name
+            )
+            
+            new_orders.append(new_order_response)
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid split method. Use 'items', 'seats', or 'equal'")
     
     return new_orders
 
