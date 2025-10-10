@@ -20,7 +20,7 @@ class Table(Base):
     is_occupied = Column(Boolean, default=False)
     current_order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
     status = Column(String, default="available")  # available, occupied, reserved, cleaning
-    seats = Column(JSON, default=list)  # Track individual seats and their status
+    seats = Column(JSON, default=lambda: [])  # Track individual seats and their status
 
 # Pydantic models for API validation
 class TableBase(BaseModel):
@@ -43,7 +43,7 @@ class TableResponse(TableBase):
     is_occupied: bool
     current_order_id: Optional[int] = None
     status: str
-    seats: Optional[List[dict]] = None
+    seats: List[dict] = []
 
     class Config:
         from_attributes = True
@@ -55,7 +55,7 @@ class TableWithOrderDetails(BaseModel):
     is_occupied: bool
     current_order_id: Optional[int] = None
     status: str
-    seats: Optional[List[dict]] = None
+    seats: List[dict] = []
     order_details: Optional[dict] = None
 
     class Config:

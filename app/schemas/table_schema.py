@@ -15,12 +15,14 @@ class TableUpdate(BaseModel):
     is_occupied: Optional[bool] = None
     current_order_id: Optional[int] = None
     status: Optional[str] = None
+    seats: Optional[List[dict]] = None
 
 class TableResponse(TableBase):
     id: int
     is_occupied: bool
     current_order_id: Optional[int] = None
     status: str
+    seats: List[dict] = []
 
     class Config:
         from_attributes = True

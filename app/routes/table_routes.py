@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Form
+from sqlalchemy import update
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from typing import List
 from datetime import datetime
 import json
@@ -187,60 +189,77 @@ def release_table(table_id: int, db: Session = Depends(get_db)):
 
 # Seat management functions
 @router.post("/{table_id}/assign-seat/{seat_number}")
-def assign_seat(table_id: int, seat_number: int, customer_name: str = "", db: Session = Depends(get_db)):
+def assign_seat(
+    table_id: int, 
+    seat_number: int, 
+    customer_name: str = Form(default=""), 
+    db: Session = Depends(get_db)
+):
     """Assign a specific seat at a table"""
     table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
-    
+
     # Ensure seats is not None before working with it
     if table.seats is None:
         table.seats = []
-    
+
     # Find the seat
     seat = next((s for s in table.seats if s["seat_number"] == seat_number), None)
     if not seat:
         raise HTTPException(status_code=404, detail="Seat not found")
-    
+
     # Update seat status
     seat["status"] = "occupied"
     seat["customer_name"] = customer_name if customer_name else None
-    
+
     # If table is not marked as occupied, update it
     if not table.is_occupied:
         table.is_occupied = True
         table.status = "occupied"
-    
+
+    # IMPORTANT: Update the table's seats field in the database
+    # In SQLAlchemy, JSON fields need to be explicitly marked as modified
+    flag_modified(table, 'seats')
+
     db.commit()
     db.refresh(table)
     return {"message": f"Seat {seat_number} assigned successfully"}
 
 @router.post("/{table_id}/release-seat/{seat_number}")
-def release_seat(table_id: int, seat_number: int, db: Session = Depends(get_db)):
+def release_seat(
+    table_id: int, 
+    seat_number: int, 
+    db: Session = Depends(get_db)
+):
     """Release a specific seat at a table"""
     table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
-    
+
     # Ensure seats is not None before working with it
     if table.seats is None:
         table.seats = []
-    
+
     # Find the seat
     seat = next((s for s in table.seats if s["seat_number"] == seat_number), None)
     if not seat:
         raise HTTPException(status_code=404, detail="Seat not found")
-    
+
     # Update seat status
     seat["status"] = "available"
     seat["customer_name"] = None
-    
+
     # Check if all seats are now available, if so, release the table
     if all(s["status"] == "available" for s in table.seats):
         table.is_occupied = False
         table.current_order_id = None
         table.status = "available"
-    
+
+    # IMPORTANT: Update the table's seats field in the database
+    # In SQLAlchemy, JSON fields need to be explicitly marked as modified
+    flag_modified(table, 'seats')
+
     db.commit()
     db.refresh(table)
     return {"message": f"Seat {seat_number} released successfully"}
